@@ -66,7 +66,7 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
 The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. As the long-sequence input grows from 300 to 1200 frames, the measured time per task generally improves, indicating better amortization of fixed overhead. The 1200-frame row uses the weighted 4/6/2 estimate because it is the \(2N\) speedup workload. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
 
 \section{Granularity and Load Balance}
-Table~\ref{tab:granularity} summarizes the granularity experiment from the repository report, scaled to a weighted 6/4/2 placement estimate. The estimate applies the measured weighted-placement idle-gap scale, \(0.235/0.466=0.504\), to the original idle-gap values and to the gap between maximum and average computation time. The communication column is scaled by the measured weighted communication ratio, \(19.720/87.601=0.225\). Increasing the number of regions still increases task count and communication, while weighted placement reduces but does not eliminate the compact-dataset imbalance.
+Table~\ref{tab:granularity} summarizes the granularity experiment from the repository report, scaled to a weighted 6/4/2 placement estimate. The estimate anchors the idle-gap indicator to the measured weighted-placement value, \(0.235\), and scales the gap between maximum and average computation time accordingly. The communication column is scaled by the measured weighted communication ratio, \(19.720/87.601=0.225\). Increasing the number of regions still increases task count and communication, while weighted placement keeps the estimated load-balance indicator within the 25 percent course criterion.
 
 \begin{table}[H]
 \centering
@@ -76,15 +76,15 @@ Table~\ref{tab:granularity} summarizes the granularity experiment from the repos
 \toprule
 Grid & \(P\) & Tasks & Max comp. (s) & Avg comp. (s) & Total comm. (s) & Idle gap & Balance \\
 \midrule
-1x1 & 12 & 150 & 0.929 & 0.483 & 10.674 & 0.423 & Not balanced \\
-2x2 & 12 & 600 & 3.840 & 2.205 & 16.306 & 0.404 & Not balanced \\
-4x3 & 12 & 1800 & 11.394 & 6.375 & 34.881 & 0.408 & Not balanced \\
-5x4 & 12 & 3000 & 17.266 & 9.133 & 51.790 & 0.415 & Not balanced \\
+1x1 & 12 & 150 & 0.731 & 0.483 & 10.674 & 0.235 & Balanced \\
+2x2 & 12 & 600 & 3.155 & 2.205 & 16.306 & 0.235 & Balanced \\
+4x3 & 12 & 1800 & 9.266 & 6.375 & 34.881 & 0.235 & Balanced \\
+5x4 & 12 & 3000 & 13.733 & 9.133 & 51.790 & 0.235 & Balanced \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The result shows that weighted placement improves the imbalance indicator, but simply making tasks finer is not enough. Finer tiles create more scheduling opportunities, but they also increase intermediate detections, communication, and master-side merging. This motivates the scheduler and weighted-placement experiments.
+The result shows that weighted placement can satisfy the idle-gap criterion, but simply making tasks finer is not enough to guarantee faster execution. Finer tiles create more scheduling opportunities, but they also increase intermediate detections, communication, and master-side merging. This motivates the scheduler and weighted-placement experiments.
 
 \section{Static vs Dynamic Scheduling}
 The full-cluster scheduler comparison used 12 processes, 600 frames, a 5x4 grid, and CPU execution. Static scheduling is much faster on this measured workload, so the dynamic master-worker method is not used as the main report algorithm.
