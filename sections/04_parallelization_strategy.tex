@@ -58,7 +58,7 @@ This centralized merge is necessary because each rank only sees its own assigned
 \[
     owner(q)=\left\lfloor \frac{q}{K} \right\rfloor \bmod P,
 \]
-where \(K\) is chunk size and \(P\) is the number of MPI ranks.
+where \(K\) is chunk size and \(P\) is the total number of MPI ranks. The value \(owner(q)\) is a global MPI rank id, not a physical machine id.
 \FOR{each MPI rank \(r\) in parallel}
     \STATE Select all tasks whose owner is \(r\).
     \FOR{each selected task \((i,j)\)}
@@ -84,13 +84,13 @@ where \(K\) is chunk size and \(P\) is the number of MPI ranks.
 \section{Weighted Process Placement}
 The cluster is heterogeneous because the three machines do not have the same CPU throughput. If every machine receives the same number of MPI ranks, the faster machines may finish early and wait for the slower machine. This creates idle time and increases the total runtime.
 
-Weighted process placement keeps the same static block-cyclic task mapping, but changes how many MPI ranks are launched on each physical machine. A stronger machine receives more ranks, so it receives more positions in the global task stream. A weaker machine receives fewer ranks, so it receives less work. The report compares uniform \(4/4/4\) placement against weighted placements such as \(3/6/3\) and \(4/6/2\). Here, \(4/6/2\) means the master runs 4 MPI ranks, node1 runs 6 MPI ranks, and node2 runs 2 MPI ranks.
+Weighted process placement keeps the same static block-cyclic task mapping, but changes how many MPI ranks are launched on each physical machine. A stronger machine receives more ranks, so more global rank ids are mapped to that machine. A weaker machine receives fewer ranks, so fewer global rank ids are mapped to it. Because tasks are assigned to ranks, this rank placement indirectly changes each machine's share of the work. The report compares uniform \(4/4/4\) placement against weighted placements such as \(3/6/3\) and \(4/6/2\). Here, \(4/6/2\) means the master runs 4 MPI processes, node1 runs 6 MPI processes, and node2 runs 2 MPI processes.
 
 The scheduling formula does not change:
 \begin{equation}
     owner(q)=\left\lfloor \frac{q}{K} \right\rfloor \bmod P.
 \end{equation}
-Only the mapping from MPI ranks to physical machines changes. Therefore, if runtime and idle gap improve, the improvement comes from better process placement, not from a different scheduling algorithm.
+In this equation, \(P=12\) for all three-machine runs, regardless of whether the placement is \(4/4/4\), \(3/6/3\), or \(4/6/2\). The formula decides which global rank owns each task; the host placement decides which physical machine runs each rank. Therefore, if runtime and idle gap improve, the improvement comes from better process placement, not from a different scheduling algorithm.
 
 \section{Metric Collection}
 Each experiment records both correctness and timing metrics. Correctness is checked using the final people counts for each frame. Timing metrics are collected to explain where the runtime is spent.
