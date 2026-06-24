@@ -21,7 +21,13 @@ All frame-tile tasks are flattened into a one-dimensional list. For task index \
 Static scheduling has low dispatch overhead because ranks can determine their own tasks locally. The measured repository results show that this advantage matters for the 600-frame 5x4 tiled YOLO workload.
 
 \subsection{Communication and Merging}
-After each rank finishes its assigned frame-tile tasks, it sends two types of data to rank 0: detected bounding boxes and timing metrics. The communication pattern is centralized. Worker ranks compute locally, then rank 0 gathers the local result payloads and performs the final merge. The current implementation uses blocking result transfer, so worker ranks wait during send operations and rank 0 waits while receiving the gathered payloads.
+After each rank finishes its assigned frame-tile tasks, it sends two types of data to rank 0: detected bounding boxes and timing metrics. The communication pattern is centralized. Worker ranks compute locally, then rank 0 gathers the local result payloads and performs the final merge. The final optimization branch uses non-blocking result collection for this gather stage. It does not change YOLO inference, task mapping, or merge semantics; it only changes how rank-local payloads are transferred to rank 0.
+
+The non-blocking gather is implemented in two phases. First, each worker sends its serialized payload size \(n_r=|S_r|\) to rank 0 using non-blocking point-to-point communication. Rank 0 posts matching receives, waits for all sizes, and computes displacements:
+\begin{equation}
+    d_r=\sum_{j=0}^{r-1} n_j.
+\end{equation}
+Second, rank 0 allocates the final receive buffer and posts non-blocking receives for all payloads \(S_r\), while worker ranks send their serialized detections and metrics. The implementation uses \code{MPI\_Isend}, \code{MPI\_Irecv}, and \code{MPI\_Waitall}, so messages from different ranks can be in flight at the same time. This reduces result-collection overhead compared with a strictly blocking gather. However, inference and communication are not overlapped: ranks first finish their assigned YOLO tasks, then send results.
 
 For each detected person box, the worker stores:
 \begin{equation}
@@ -68,7 +74,7 @@ where \(K\) is chunk size and \(P\) is the total number of MPI ranks. The value 
         \STATE Store local boxes and timing metrics.
     \ENDFOR
 \ENDFOR
-\STATE Gather serialized detections and rank metrics to rank 0.
+\STATE Gather serialized detections and rank metrics to rank 0 using two-phase non-blocking point-to-point communication.
 \IF{rank is 0}
     \FOR{each frame \(F_i\)}
         \STATE Convert tile-local boxes to global frame coordinates.

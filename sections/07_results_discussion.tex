@@ -227,6 +227,31 @@ Weighted & 4/6/2 & 29.581 & 27.484 & 0.235 & Balanced \\
 
 Weighted placement is the strongest load-balancing result in the report. Uniform 4/4/4 placement has a higher idle gap and fails the 0.25 balance criterion. Moving to weighted placements improves runtime and idle gap because stronger machines receive more MPI ranks while the slower machine receives fewer ranks. The best measured placement is 4/6/2, which reduces the idle gap below the balance threshold. This supports the claim that processor assignment matters: equal rank counts are not necessarily fair when hosts have different throughput.
 
+\section{Non-Blocking Gather Evaluation}
+The final optimization branch keeps the same static task mapping and YOLO inference logic, but replaces the blocking result collection with a two-phase non-blocking gather. The purpose of this experiment is to check whether the communication change preserves correctness and improves the end-to-end runtime on the 12-rank CPU cluster.
+
+\begin{table}[H]
+\centering
+\caption{Summary of the non-blocking gather branch}
+\label{tab:nonblocking-summary}
+\small
+\begin{tabularx}{\textwidth}{L{3.0cm} L{3.4cm} X}
+\toprule
+Measurement & Main result & Interpretation \\
+\midrule
+Correctness & Passed & Serial and MPI outputs match, so non-blocking collection does not change bounding boxes or final counts. \\
+Detector accuracy & MAE 8.35, RMSE 8.68 & YOLO undercounts crowded MOT17 frames: ground truth averages 16.21 people while prediction averages 7.86. This is a detector limitation, not an MPI error. \\
+Input-size run & 600 frames, 35.45 s & The optimized gather reduces end-to-end runtime compared with the earlier conservative benchmark. \\
+Granularity & 5x4 grid, idle gap 0.540 & Fine tiling creates many payloads and more merge work. Non-blocking transfer reduces communication waiting, but it does not remove natural load imbalance in video inference. \\
+Speedup & 3.342x at \(P=12\) & Runtime drops from 264.18 s at \(P=1\) to 79.06 s at \(P=12\), with efficiency about 0.28. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The non-blocking speedup trend is stronger than the earlier blocking-oriented benchmark: \(T_1=264.18\) s, \(T_2=230.92\) s, \(T_4=227.60\) s, \(T_8=121.85\) s, and \(T_{12}=79.06\) s. The largest jump happens between 4 and 8 ranks, where the workload begins to benefit more clearly from spreading inference across machines. The speedup is still sublinear because rank 0 must gather all detections and run global duplicate removal, and because the serial merge stage limits scaling according to Amdahl's law.
+
+In a few runs, the measured runtime without communication is slightly larger than the corresponding runtime with communication, especially at \(P=2\) and \(P=4\). This does not mean communication has negative cost. These measurements were collected from separate runs, so small inversions can come from system noise, background operating-system activity, cache state, and CPU scheduling variation. The report therefore treats these small differences as measurement noise rather than a change in the metric definition.
+
 \section{YOLO Parallel Correctness}
 This experiment verifies parallel correctness: after task assignment, MPI gathering, coordinate remapping, duplicate removal, and final counting, the MPI output should match the serial pipeline output.
 
