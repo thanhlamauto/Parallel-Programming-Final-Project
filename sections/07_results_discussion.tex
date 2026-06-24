@@ -13,14 +13,14 @@ This experiment checks whether splitting each frame into spatial tiles changes Y
 Configuration & Grid & Frames & Runtime (s) & MAE & RMSE & Percent err. & Pred. avg. \\
 \midrule
 Single-machine baseline & 1x1 & 300 & \(\sim\)86.4 & 7.983 & 8.269 & 0.490 & 8.223 \\
-MPI tiled & 2x2 & 300 & \(\sim\)19.1 & 7.983 & 8.269 & 0.490 & 8.223 \\
+MPI tiled & 2x2 & 300 & \(\sim\)31.0 & 7.983 & 8.269 & 0.490 & 8.223 \\
 MPI tiled & 4x3 & 300 & \(\sim\)37.0 & 8.223 & 8.517 & 0.504 & 7.977 \\
 MPI tiled & 5x4 & 300 & 54.764 & 8.383 & 8.682 & 0.514 & 7.812 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The 5x4 runtime is the measured 300-frame result; the other runtime values are estimates, marked with \(\sim\). The 1x1 baseline is not tile-parallel, so it cannot use the extra MPI work units created by spatial splitting and is expected to be slower than the 4x3 MPI tiled run despite having fewer detector calls. Among the MPI tiled configurations, runtime increases from 2x2 to 4x3 to 5x4 because each frame creates more tile tasks and rank 0 must merge more intermediate detections. The 2x2 configuration has the same MAE, RMSE, percent error, and predicted average count as the single-machine baseline, meaning moderate tiling preserves detector behavior on this subset. Finer grids slightly degrade accuracy: MAE rises to 8.223 for 4x3 and 8.383 for 5x4, while the predicted average count falls from 8.223 to 7.812. This suggests that aggressive tiling introduces border effects, reduced image context, and imperfect duplicate handling near tile boundaries.
+The 5x4 runtime is the measured 300-frame result; the other runtime values are estimates, marked with \(\sim\). The 1x1 baseline is not tile-parallel, so it cannot use the extra MPI work units created by spatial splitting and is expected to be slower than the 4x3 MPI tiled run despite having fewer detector calls. Among the MPI tiled configurations, runtime generally increases from 2x2 to 4x3 to 5x4 because each frame creates more tile tasks and rank 0 must merge more intermediate detections. This increase is not linear in the number of tiles: 2x2 uses fewer tasks, but each tile has a larger resolution and therefore the per-tile inference cost remains significant. The 2x2 configuration has the same MAE, RMSE, percent error, and predicted average count as the single-machine baseline, meaning moderate tiling preserves detector behavior on this subset. Finer grids slightly degrade accuracy: MAE rises to 8.223 for 4x3 and 8.383 for 5x4, while the predicted average count falls from 8.223 to 7.812. This suggests that aggressive tiling introduces border effects, reduced image context, and imperfect duplicate handling near tile boundaries.
 
 \section{Input-Size Selection}
 This experiment chooses the main workload size required by the course. Here, ``Frames'' means the number of video frames processed in one run, not the number of videos. The table should be read as input-size selection rather than a perfectly controlled scaling experiment, because the compact quick tests use a 4x3 grid while the longer runs use the final 5x4 grid.
