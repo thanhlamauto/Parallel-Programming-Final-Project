@@ -35,11 +35,8 @@ All frame-tile tasks are flattened into a one-dimensional list. For task index \
 \end{equation}
 Static scheduling has low dispatch overhead because ranks can determine their own tasks locally. The measured repository results show that this advantage matters for the 600-frame 5x4 tiled YOLO workload.
 
-\subsection{Dynamic Master-Worker Scheduling}
-Dynamic scheduling uses rank 0 as a master. The master owns the remaining task queue, dispatches tasks to workers, receives completed result payloads, and sends either the next task or a stop message. If \code{master\_compute=1}, rank 0 may also process local tasks while waiting. The dynamic scheduler uses \code{MPI\_Iprobe} for polling readiness, while payload transfer still uses blocking \code{MPI\_Send} and \code{MPI\_Recv}.
-
 \subsection{Communication and Merging}
-The dynamic topology is a star centered on rank 0. Workers do not exchange detections with one another. Rank 0 gathers detections, remaps tile-local boxes into frame coordinates, applies tile-owner filtering, runs global non-maximum suppression, and computes per-frame counts. This centralized merge is necessary because people near tile boundaries may be detected by multiple tiles.
+After local inference, rank 0 gathers detections and rank metrics from all ranks. It then remaps tile-local boxes into frame coordinates, applies tile-owner filtering, runs global non-maximum suppression, and computes per-frame counts. This centralized merge is necessary because people near tile boundaries may be detected by multiple tiles.
 
 \subsection{YOLO Algorithm Sketch}
 \begin{algorithm}[H]
@@ -53,26 +50,6 @@ The dynamic topology is a star centered on rank 0. Workers do not exchange detec
 \ENDFOR
 \STATE Gather serialized detections and rank metrics to rank 0.
 \STATE Rank 0 remaps boxes, removes duplicates, computes frame counts, and writes CSV outputs.
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}[H]
-\caption{Dynamic master-worker YOLO people-counting pipeline}
-\begin{algorithmic}[1]
-\IF{rank is 0}
-    \STATE Initialize task queue and dispatch initial tasks to available workers.
-    \WHILE{unfinished tasks or active workers remain}
-        \STATE Poll for ready worker results with \code{MPI\_Iprobe}.
-        \STATE Receive completed payloads using blocking \code{MPI\_Recv}.
-        \STATE Send next task or stop message using \code{MPI\_Send}.
-        \STATE Optionally compute one local task if \code{master\_compute} is enabled.
-    \ENDWHILE
-    \STATE Merge detections and write output tables.
-\ELSE
-    \WHILE{a task is received}
-        \STATE Run local YOLO inference and send results to rank 0.
-    \ENDWHILE
-\ENDIF
 \end{algorithmic}
 \end{algorithm}
 

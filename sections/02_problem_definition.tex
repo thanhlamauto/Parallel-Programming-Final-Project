@@ -42,8 +42,8 @@ Aspect & Method 1: YOLO video inference & Method 2: VGG11 convolution \\
 Parallelism level & Task parallelism & Data parallelism \\
 Decomposition & Temporal-spatial frame/tile tasks & 2D feature-map blocks \\
 Mapping & 1D flattened task mapping & 2D block/process-grid mapping \\
-Communication & Master-worker dispatch and result collection & Neighbor halo exchange \\
-Topology & Star topology around rank 0 & 2D Cartesian/mesh-like topology \\
+Communication & Static gather and centralized result aggregation & Neighbor halo exchange \\
+Topology & Independent rank work followed by rank-0 aggregation & 2D Cartesian/mesh-like topology \\
 Correctness target & Serial count equals MPI count & Serial convolution/VGG stack equals distributed output \\
 \bottomrule
 \end{tabularx}

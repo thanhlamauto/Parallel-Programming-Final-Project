@@ -80,7 +80,7 @@ Grid & \(P\) & Tasks & Max comp. (s) & Avg comp. (s) & Total comm. (s) & Idle ga
 The result shows that simply making tasks finer is not enough. Finer tiles create more scheduling opportunities, but they also increase intermediate detections, communication, and master-side merging. This motivates the scheduler and weighted-placement experiments.
 
 \section{Static vs Dynamic Scheduling}
-The full-cluster scheduler comparison used 12 processes, 600 frames, a 5x4 grid, and CPU execution. Static scheduling is much faster on this measured workload.
+The full-cluster scheduler comparison used 12 processes, 600 frames, a 5x4 grid, and CPU execution. Static scheduling is much faster on this measured workload, so the dynamic master-worker method is not used as the main report algorithm.
 
 \begin{table}[H]
 \centering
@@ -96,7 +96,7 @@ Dynamic & 12 & 5x4 & 102.316 & 96.959 & 2.778 & 0.837 & Not balanced \\
 \end{tabularx}
 \end{table}
 
-Dynamic scheduling is conceptually useful for irregular workloads, but this result shows it is not automatically faster. For the 600-frame tiled YOLO workload, the cost of dispatching many small tasks and collecting results at rank 0 outweighs the load-balancing benefit. Static scheduling is therefore used for the final weighted-placement experiment.
+Dynamic scheduling is inefficient for this specific task. The 5x4 grid creates many small frame-tile tasks, so a master-worker queue forces rank 0 to repeatedly send task metadata, poll or receive worker results, and dispatch the next task. That extra communication and coordination is larger than the load-balancing benefit. Static block-cyclic scheduling avoids per-task dispatch traffic, lets ranks select their own work locally, and is therefore used for the final weighted-placement experiment.
 
 \section{Speedup and Efficiency}
 The original speedup experiment uses the selected input size doubled to \(2N=1200\) frames. Table~\ref{tab:speedup} reports the recorded speedup values.
