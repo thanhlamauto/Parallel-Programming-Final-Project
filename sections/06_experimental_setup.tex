@@ -1,7 +1,7 @@
 \chapter{Experimental Setup}
 
 \section{Repository Evidence}
-The draft is based on the local repository \code{yolo-mpi-people-count}. The strongest source for measured YOLO values is \code{reports/final\_report\_hust\_style.md}, with additional full-cluster discussion in \code{reports/additional\_experiments\_20260623.md}. The checkout does not include the raw CSV result directories referenced by those reports, so this document records the published report values and leaves missing experiment tables as pending.
+The draft is based on the local repository \code{yolo-mpi-people-count}. The strongest source for measured YOLO values is \code{reports/final\_report\_hust\_style.md}, with additional full-cluster discussion in \code{reports/additional\_experiments\_20260623.md}. The updated artifact branch also provides compact CSV files under \code{reports/artifacts/}; those CSV artifacts have been copied into this report repository under \code{artifacts/}.
 
 \section{Physical Cluster}
 The project uses three physical MacBook machines connected through a local network. The benchmark mode uses CPU execution to match the course emphasis on MPI processes and processor assignment. GPU/MPS execution is kept for demonstration and live-camera use rather than formal CPU speedup measurement.
@@ -74,9 +74,9 @@ Granularity & YOLO & Filled from report values & Study task count, communication
 Scheduling & YOLO & Filled from report values & Compare static and dynamic scheduling. \\
 Speedup & YOLO & Filled from report values & Measure \(S_p\) and \(E_p\). \\
 Weighted placement & YOLO & Filled from report values & Address heterogeneous physical cluster. \\
-Correctness & VGG11 & Pending CSV & Verify distributed convolution stack. \\
-Input size and speedup & VGG11 & Pending CSV & Evaluate data-parallel CNN convolution. \\
-Blocking vs non-blocking & VGG11 & Pending CSV & Compare halo exchange strategies. \\
+Correctness & VGG11 & Filled from artifact CSV & Verify distributed convolution stack. \\
+Input size and speedup & VGG11 & Filled from artifact CSV & Evaluate data-parallel CNN convolution. \\
+Communication breakdown & VGG11 & Filled for blocking halo & Quantify halo/gather overhead; non-blocking CSV is not included in the current artifact set. \\
 \bottomrule
 \end{tabularx}
 \end{table}

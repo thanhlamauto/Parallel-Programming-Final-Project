@@ -1,0 +1,6 @@
+p,halo_mode,profile,height,width,grid,distributed_ms,serial_ms,speedup,efficiency,max_abs_error,mean_abs_error,correct,weights_dir,halo_total_edges,halo_intra_machine_edges,halo_inter_machine_edges,halo_inter_machine_edge_ratio
+1,blocking,full,128,128,1x1,6297.192000,6514.400000,1.000000,1.000000,0.000000,0.000000,YES,models/vgg11-pretrained-conv,0,0,0,0.000000
+2,blocking,full,128,128,1x2,3368.788000,7018.515000,1.869275,0.934638,0.000000,0.000000,YES,models/vgg11-pretrained-conv,1,1,0,0.000000
+4,blocking,full,128,128,2x2,1942.953000,7447.613000,3.241042,0.810260,0.000000,0.000000,YES,models/vgg11-pretrained-conv,6,6,0,0.000000
+8,blocking,full,128,128,2x4,65465.710000,7957.259000,0.096191,0.012024,0.000000,0.000000,YES,models/vgg11-pretrained-conv,16,6,10,0.625000
+12,blocking,full,128,128,3x4,95005.434000,8808.176000,0.066282,0.005524,0.000000,0.000000,YES,models/vgg11-pretrained-conv,29,13,16,0.551724

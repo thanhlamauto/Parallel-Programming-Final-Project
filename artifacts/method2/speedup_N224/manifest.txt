@@ -1,0 +1,17 @@
+method=Method 2: VGG11 no-BN distributed convolution
+binary=build/vgg11_mpi
+height=224
+width=224
+profile=full
+grid=auto
+halo_modes=blocking
+p_list=1 2 4 8 12
+repeats=1
+check_serial=1
+classify=1
+use_hostfile=1
+hostfile=configs/hosts_macos_core_weighted_12_4_6_2
+input_list=data/vgg11-tiny-images-224/image_list.txt
+input_limit=4
+weights_dir=models/vgg11-pretrained-conv
+purpose=Benchmark fine-grained data parallelism inside VGG11 convolution layers using 2D block mapping and halo exchange.

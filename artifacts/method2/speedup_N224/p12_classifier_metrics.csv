@@ -1,0 +1,2 @@
+enabled,distributed_top1,serial_top1,distributed_score,serial_score,max_abs_error,mean_abs_error,classifier_ms,top1_match
+1,951,951,14.232977,14.232977,0.000000,0.000000,291.223000,YES

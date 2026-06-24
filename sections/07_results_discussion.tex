@@ -18,23 +18,26 @@ Passed & 30 & 0 & 0 & 0.000 & repository report \\
 
 This validates the parallel pipeline for the tested configuration. It indicates that task splitting, MPI result collection, coordinate remapping, duplicate removal, and final counting preserve the serial pipeline output.
 
-\section{Detector Accuracy Against Ground Truth}
-Table~\ref{tab:accuracy} compares YOLO predicted frame counts against MOT17 ground-truth counts. This is a model-accuracy measurement, not a parallel-correctness measurement.
+\section{Detector Accuracy Under Tile Splitting}
+Table~\ref{tab:accuracy} compares detector accuracy against MOT17 ground-truth counts for the normal single-machine YOLO baseline and for different MPI tile-splitting configurations. The purpose of this experiment is to check whether spatial tiling changes the final detection accuracy, not only whether the MPI implementation is faster.
 
 \begin{table}[H]
 \centering
-\caption{YOLO count accuracy against MOT17 ground truth}
+\caption{YOLO accuracy comparison across baseline and tile-splitting configurations}
 \label{tab:accuracy}
-\begin{tabularx}{\textwidth}{C{1.1cm} C{1.5cm} C{1.5cm} C{1.6cm} C{1.6cm} C{1.8cm} C{1.8cm}}
+\begin{tabularx}{\textwidth}{L{2.9cm} C{0.9cm} C{1.0cm} C{1.0cm} C{1.1cm} C{1.35cm} C{1.35cm} C{1.3cm}}
 \toprule
-Frames & MAE & RMSE & Percent error & Exact match & GT avg. & Pred. avg. \\
+Configuration & Grid & Frames & MAE & RMSE & Percent error & Exact match & Pred. avg. \\
 \midrule
-300 & 7.983 & 8.269 & 0.490 & 0.000 & 16.207 & 8.223 \\
+Single-machine YOLO baseline & 1x1 & -- & -- & -- & -- & -- & -- \\
+MPI tiled YOLO & 2x2 & -- & -- & -- & -- & -- & -- \\
+MPI tiled YOLO & 4x3 & -- & -- & -- & -- & -- & -- \\
+MPI tiled YOLO & 5x4 & -- & -- & -- & -- & -- & -- \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The detector undercounts crowded MOT17 scenes. This limitation is expected for a pretrained detector running without dataset-specific fine-tuning. The important report distinction is that MPI correctness passes even though detector-versus-ground-truth accuracy is imperfect.
+If the tiled configurations produce accuracy metrics close to the single-machine baseline, then the tiling and merge stage preserve detector behavior. Any remaining error against MOT17 ground truth is then mainly a detector limitation, especially in crowded scenes, rather than evidence that MPI tiling changes the model output.
 
 \section{Input-Size Selection}
 The compact MOT17 subset is useful for quick runs but does not reach the required two-to-three-minute runtime. The long-sequence experiment in Table~\ref{tab:input-size} selects \(N=600\) frames because the 12-process wall-clock runtime is 123.667 seconds.
@@ -162,40 +165,74 @@ This result supports the claim that processor assignment matters on a heterogene
 \section{Local-Only and Full-Cluster Observation}
 Additional experiments show that increasing process count on a single machine can saturate local resources. On the master-only 600-frame 5x4 run, 2 processes achieved 288.494 seconds while 4 and 8 processes were slower. In contrast, the full three-machine 600-frame dynamic sweep improved from 202.715 seconds at 1 process to 90.900 seconds at 12 processes. This supports the defense point that physical distribution matters more than only increasing the number of local MPI ranks.
 
-\section{VGG11 Method 2 Pending Tables}
-The VGG11 convolution method still needs final measured CSV values in this checkout. The following tables are intentionally left as a fill-in framework.
+\section{VGG11 Method 2 Results}
+The updated repository branch contains report artifacts for the VGG11 convolution method under \code{reports/artifacts/method2}. These results use pretrained VGG11 without BatchNorm and blocking halo exchange. The classifier check confirms that the distributed path preserves the serial top-1 output.
 
 \begin{table}[H]
 \centering
-\caption{Pending VGG11 correctness table}
+\caption{VGG11 correctness and classifier check}
 \label{tab:vgg-correctness}
-\begin{tabularx}{\textwidth}{L{2.6cm} C{1.4cm} C{1.6cm} C{2.0cm} C{2.0cm} X}
+\begin{tabularx}{\textwidth}{L{3.0cm} C{1.6cm} C{1.8cm} C{2.0cm} C{2.0cm} X}
 \toprule
-Profile & \(P\) & Grid & Halo mode & Max error & Result/evidence \\
+Profile/input & \(P\) & Grid & Halo mode & Max error & Result/evidence \\
 \midrule
-Pending & Pending & Pending & Blocking & Pending CSV & Pending \code{summary.csv} \\
-Pending & Pending & Pending & Non-blocking & Pending CSV & Pending \code{summary.csv} \\
+Full, \(224 \times 224\) & 12 & 3x4 & Blocking & 0.000000 & Top-1 match YES, class 951 lemon \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \begin{table}[H]
 \centering
-\caption{Pending VGG11 speedup and communication table}
-\label{tab:vgg-speedup}
-\begin{tabularx}{\textwidth}{C{1.0cm} C{1.6cm} C{1.8cm} C{2.0cm} C{2.0cm} C{1.6cm} X}
+\caption{VGG11 input-size sweep at 12 ranks}
+\label{tab:vgg-input-size}
+\begin{tabularx}{\textwidth}{C{1.4cm} C{1.4cm} C{1.9cm} C{1.9cm} C{1.8cm} C{1.8cm} X}
 \toprule
-\(P\) & Input size & Halo mode & Runtime (s) & Halo comm. (s) & Speedup & Evidence \\
+Height & Width & Distributed (s) & Serial (s) & Halo (s) & Gather (s) & Correct \\
 \midrule
-1 & Pending & Blocking & Pending CSV & Pending CSV & 1.000 & Pending \\
-2 & Pending & Blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
-4 & Pending & Blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
-8 & Pending & Blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
-12 & Pending & Blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
-12 & Pending & Non-blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
+64 & 64 & 71.675 & 1.931 & 1.049 & 1.776 & YES \\
+96 & 96 & 81.563 & 5.297 & 1.368 & 3.839 & YES \\
+128 & 128 & 95.005 & 8.808 & 2.474 & 6.832 & YES \\
+160 & 160 & 98.414 & 15.044 & 1.280 & 7.465 & YES \\
+224 & 224 & 149.596 & 29.778 & 1.564 & 21.454 & YES \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+\begin{table}[H]
+\centering
+\caption{VGG11 speedup on \(224 \times 224\) input}
+\label{tab:vgg-speedup}
+\begin{tabularx}{\textwidth}{C{1.0cm} C{1.2cm} C{1.8cm} C{1.7cm} C{1.7cm} C{1.9cm} X}
+\toprule
+\(P\) & Grid & Runtime (s) & Speedup & Efficiency & Inter-machine halo & Correct \\
+\midrule
+1 & 1x1 & 20.689 & 1.000 & 1.000 & 0.000 & YES \\
+2 & 1x2 & 10.809 & 1.914 & 0.957 & 0.000 & YES \\
+4 & 2x2 & 5.797 & 3.569 & 0.892 & 0.000 & YES \\
+8 & 2x4 & 115.315 & 0.179 & 0.022 & 0.625 & YES \\
+12 & 3x4 & 170.805 & 0.121 & 0.010 & 0.552 & YES \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{VGG11 communication breakdown on \(224 \times 224\) input}
+\label{tab:vgg-communication}
+\begin{tabularx}{\textwidth}{C{1.0cm} C{2.0cm} C{2.4cm} C{1.8cm} C{1.8cm} C{1.8cm} X}
+\toprule
+\(P\) & Runtime with comm. (s) & Runtime without comm. est. (s) & Halo (s) & Gather (s) & Comm. total (s) & Interpretation \\
+\midrule
+1 & 20.689 & 20.685 & 0.001 & 0.003 & 0.004 & Baseline \\
+2 & 10.809 & 10.789 & 0.002 & 0.018 & 0.020 & Good scaling \\
+4 & 5.797 & 5.739 & 0.022 & 0.037 & 0.059 & Best scaling \\
+8 & 115.315 & 98.569 & 0.379 & 16.368 & 16.746 & Gather dominates \\
+12 & 170.805 & 153.319 & 1.032 & 16.453 & 17.486 & Communication dominates \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The VGG11 results show the classic trade-off of fine-grained CNN data parallelism. From \(P=1\) to \(P=4\), runtime improves from 20.689 seconds to 5.797 seconds. At \(P=8\) and \(P=12\), performance collapses because the per-rank blocks become small and many block boundaries cross physical machines. For the \(P=12\) run, 16 of 29 halo edges are inter-machine edges, giving an inter-machine halo ratio of 0.552. The artifact set currently includes blocking halo results; a non-blocking comparison table should be added only when a corresponding CSV is produced.
 
 \section{Summary of Findings}
-The measured YOLO results support the main parallel-programming narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that scheduling and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235. Method 2 is ready as a report framework but still requires final CSV evidence before numerical conclusions should be written.
+The measured YOLO results support the main task-parallel narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that scheduling and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235. The VGG11 results support the second data-parallel narrative: distributed convolution is correct and scales well up to four ranks, but communication and gather overhead dominate when the feature-map blocks become too small or cross machine boundaries.

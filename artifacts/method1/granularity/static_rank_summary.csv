@@ -1,0 +1,2 @@
+label,rank_count,total_tasks,compute_s_max,compute_s_min,compute_s_avg,comm_s_total,idle_s_total,idle_gap_ratio,load_balance_pass
+static,12,1800,13.823209,3.395187,7.651627,91.048342,74.058984,0.754385,NO

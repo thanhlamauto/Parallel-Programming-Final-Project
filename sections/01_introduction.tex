@@ -4,7 +4,7 @@ Computer vision inference is a useful setting for studying parallel programming 
 
 This project focuses on CNN-based inference rather than model training. The main implemented application is video people counting with YOLO. Given an input video, the system predicts people bounding boxes and frame-level counts. The expensive work is detector inference over many frames and image tiles. The parallel contribution is the C++17/OpenMPI runtime around the detector: it creates tasks, schedules them across MPI ranks, launches local detector workers, gathers detections, removes duplicates, and writes experiment artifacts.
 
-The repository also contains a second method for CNN convolution parallelization using VGG11 without BatchNorm. This method is structurally different from the YOLO pipeline. Instead of assigning independent frame-tile inference tasks, it decomposes convolution feature maps into 2D blocks, exchanges halo data between neighboring ranks, and compares blocking and non-blocking MPI communication. The checked-out repository contains the implementation and runbook for this direction, but it does not include final measured CSV outputs. Therefore, this report treats Method 2 as a complete framework with pending result tables.
+The repository also contains a second method for CNN convolution parallelization using VGG11 without BatchNorm. This method is structurally different from the YOLO pipeline. Instead of assigning independent frame-tile inference tasks, it decomposes convolution feature maps into 2D blocks and exchanges halo data between neighboring ranks. The updated artifact branch includes measured blocking-halo CSV outputs for this direction, so Method 2 is reported with correctness, input-size, speedup, communication, and topology results. Non-blocking halo exchange remains a future comparison unless a matching CSV artifact is produced.
 
 The report separates two types of correctness. Model accuracy means whether YOLO counts match human ground truth from MOT17. Parallel correctness means whether the MPI implementation produces the same result as the serial version of the same pipeline. A detector can undercount in crowded scenes while the parallel implementation remains correct. The measured results from the repository show this distinction clearly: serial and MPI counts match in the correctness test, while detector-versus-ground-truth accuracy remains limited on crowded MOT17 frames.
 
@@ -14,5 +14,5 @@ The main objectives are:
     \item present Method 1: task parallelism for YOLO video inference;
     \item present Method 2: data parallelism for VGG11 convolution layers;
     \item report measured YOLO correctness, input-size, scheduling, granularity, speedup, and weighted-placement results from the repository;
-    \item leave explicit placeholder tables for experiments that still require final CSV evidence.
+    \item use artifact CSV values for completed experiments and clearly mark any future comparison that still lacks evidence.
 \end{itemize}
