@@ -125,6 +125,57 @@ The speedup experiment uses the selected input size doubled to \(2N=1200\) frame
 \end{tabularx}
 \end{table}
 
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=\textwidth,
+    height=5.2cm,
+    xlabel={MPI processes},
+    ylabel={Wall speedup},
+    xmin=1, xmax=12,
+    ymin=0, ymax=3,
+    xtick={1,2,4,8,12},
+    ymajorgrids=true,
+    grid style={gray!20},
+    mark options={solid},
+]
+\addplot[color=blue, mark=*] coordinates {
+    (1,1.000) (2,1.719) (4,1.939) (8,2.364) (12,2.662)
+};
+\end{axis}
+\end{tikzpicture}
+\caption{Wall-clock speedup}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=\textwidth,
+    height=5.2cm,
+    xlabel={MPI processes},
+    ylabel={Efficiency},
+    xmin=1, xmax=12,
+    ymin=0, ymax=1.05,
+    xtick={1,2,4,8,12},
+    ymajorgrids=true,
+    grid style={gray!20},
+    mark options={solid},
+]
+\addplot[color=red!70!black, mark=square*] coordinates {
+    (1,1.000) (2,0.859) (4,0.485) (8,0.296) (12,0.222)
+};
+\end{axis}
+\end{tikzpicture}
+\caption{Parallel efficiency}
+\end{subfigure}
+\caption{Speedup and efficiency trends for the 1200-frame weighted-placement run.}
+\label{fig:speedup-efficiency}
+\end{figure}
+
 The speedup is measurable but not linear. Under weighted placement, the wall-clock speedup rises from 1.719x at two processes to 2.662x at twelve processes. The 12-process computation-only speedup is approximately 2.673x. The improvement comes from reducing idle gap and assigning fewer ranks to the slower node.
 
 The follow-up report also records two complete 1200-frame repeats. Those values are useful for defense because they show stable 12-process runtime but a variable one-process baseline:
@@ -163,6 +214,63 @@ Weighted & 4/6/2 & 29.581 & 27.484 & 0.235 & Balanced \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    width=\textwidth,
+    height=5.0cm,
+    ylabel={Runtime with comm. (s)},
+    symbolic x coords={4/4/4,3/6/3,4/6/2},
+    xtick=data,
+    ymin=0,
+    ymax=45,
+    nodes near coords,
+    nodes near coords align={vertical},
+    ymajorgrids=true,
+    grid style={gray!20},
+    bar width=16pt,
+]
+\addplot[fill=blue!35, draw=blue!60!black] coordinates {
+    (4/4/4,40.619) (3/6/3,34.712) (4/6/2,29.581)
+};
+\end{axis}
+\end{tikzpicture}
+\caption{Runtime by placement}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    width=\textwidth,
+    height=5.0cm,
+    ylabel={Idle gap},
+    symbolic x coords={4/4/4,3/6/3,4/6/2},
+    xtick=data,
+    ymin=0,
+    ymax=0.55,
+    nodes near coords,
+    nodes near coords align={vertical},
+    ymajorgrids=true,
+    grid style={gray!20},
+    bar width=16pt,
+]
+\addplot[fill=green!35, draw=green!50!black] coordinates {
+    (4/4/4,0.466) (3/6/3,0.371) (4/6/2,0.235)
+};
+\end{axis}
+\end{tikzpicture}
+\caption{Idle gap by placement}
+\end{subfigure}
+\caption{Weighted placement reduces both runtime and idle-gap imbalance.}
+\label{fig:weighted-placement}
+\end{figure}
 
 This result supports the claim that processor assignment matters on a heterogeneous physical cluster. Equal rank placement gives every host the same number of processes, but the machines do not have equal throughput. Weighted placement reduces runtime and satisfies the load-balance criterion.
 
