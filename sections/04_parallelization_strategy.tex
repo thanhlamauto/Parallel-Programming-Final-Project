@@ -122,8 +122,4 @@ The idle-gap indicator is:
 \begin{equation}
     idle\_gap = \frac{T_{max}-T_{min}}{T_{max}},
 \end{equation}
-where \(T_{max}=\max_r T_r\) and \(T_{min}=\min_r T_r\). A smaller idle gap means the workload is distributed more evenly. The course criterion treats a run as balanced when:
-\begin{equation}
-    idle\_gap \le 0.25.
-\end{equation}
-In the YOLO experiments, equal process placement such as \(4/4/4\) does not satisfy this condition, while the best weighted static placement reduces idle time and satisfies the load-balancing criterion.
+where \(T_{max}=\max_r T_r\) and \(T_{min}=\min_r T_r\). A smaller idle gap means the workload is distributed more evenly.
