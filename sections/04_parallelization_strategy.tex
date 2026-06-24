@@ -4,28 +4,13 @@
 The YOLO pipeline uses task-level parallelism over independent frame-tile inference tasks. The implementation is centered on \code{src/yolo\_mpi\_cpp.cpp} in the repository. Each MPI rank runs the same C++ program, and rank-local detector work is delegated to a long-lived Python YOLO worker.
 
 \subsection{Temporal-Spatial Decomposition}
-The input video is first decomposed by time into frames and then by space into image tiles. If the video has \(N\) frames and each frame is split into an \(R \times C\) grid, the total number of tasks is \(NRC\). Larger grids create more tasks and can improve scheduling flexibility, but they increase duplicate detections near tile borders and increase post-processing work.
+The input video is first decomposed by time into frames and then by space into image tiles. If the video has \(N\) frames and each frame is split into an \(R \times C\) grid, the total number of tasks is \(NRC\). Figure~\ref{fig:yolo-grid-split} shows a concrete example for the 5x4 configuration used in the main experiments. Larger grids create more tasks and can improve scheduling flexibility, but they increase duplicate detections near tile borders and increase post-processing work.
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-    tile/.style={draw, minimum width=1.0cm, minimum height=0.5cm, fill=green!7},
-    box/.style={draw, rounded corners=2pt, align=center, minimum height=0.8cm, minimum width=2.2cm, fill=gray!8},
-    arrow/.style={-{Latex[length=2mm]}, thick}
-]
-\node[box] (video) at (0,0) {Video};
-\node[box] (frames) at (3.0,0) {Frames};
-\node[box] (tasks) at (6.0,0) {Frame-tile\\tasks};
-\draw[arrow] (video) -- (frames);
-\draw[arrow] (frames) -- (tasks);
-\foreach \r in {0,1,2} {
-  \foreach \c in {0,1,2,3} {
-    \node[tile] at (6.9+\c*1.0,0.6-\r*0.5) {};
-  }
-}
-\end{tikzpicture}
-\caption{Hybrid temporal-spatial decomposition for YOLO video inference.}
-\label{fig:yolo-decomposition}
+\includegraphics[width=\textwidth]{figures/yolo_grid_split_visualization.png}
+\caption{Hybrid temporal-spatial decomposition for YOLO video inference. The public-domain crowd frame is from Wikimedia Commons~\cite{keymeulen2011crowd}; the overlay illustrates how one frame becomes independent 5x4 frame-tile tasks.}
+\label{fig:yolo-grid-split}
 \end{figure}
 
 \subsection{1D Mapping and Static Scheduling}
