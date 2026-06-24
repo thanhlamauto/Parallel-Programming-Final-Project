@@ -81,44 +81,49 @@ where \(K\) is chunk size and \(P\) is the number of MPI ranks.
 \end{algorithmic}
 \end{algorithm}
 
-\section{Parallel-Programming Focus}
+\section{Weighted Process Placement}
+The cluster is heterogeneous because the three machines do not have the same CPU throughput. If every machine receives the same number of MPI ranks, the faster machines may finish early and wait for the slower machine. This creates idle time and increases the total runtime.
 
-\begin{table}[H]
-\centering
-\caption{Parallel-programming concepts in the YOLO MPI pipeline}
-\label{tab:yolo-concepts}
-\begin{tabularx}{\textwidth}{L{3.6cm} X}
-\toprule
-Concept & YOLO MPI implementation \\
-\midrule
+Weighted process placement keeps the same static block-cyclic task mapping, but changes how many MPI ranks are launched on each physical machine. A stronger machine receives more ranks, so it receives more positions in the global task stream. A weaker machine receives fewer ranks, so it receives less work. The report compares uniform \(4/4/4\) placement against weighted placements such as \(3/6/3\) and \(4/6/2\). Here, \(4/6/2\) means the master runs 4 MPI ranks, node1 runs 6 MPI ranks, and node2 runs 2 MPI ranks.
 
-Parallelism level 
-& Task-level parallelism: each task runs YOLO on one frame tile. \\
+The scheduling formula does not change:
+\begin{equation}
+    owner(q)=\left\lfloor \frac{q}{K} \right\rfloor \bmod P.
+\end{equation}
+Only the mapping from MPI ranks to physical machines changes. Therefore, if runtime and idle gap improve, the improvement comes from better process placement, not from a different scheduling algorithm.
 
-Decomposition 
-& Hybrid temporal-spatial decomposition: video frames are divided into smaller image tiles. \\
+\section{Metric Collection}
+Each experiment records both correctness and timing metrics. Correctness is checked using the final people counts for each frame. Timing metrics are collected to explain where the runtime is spent.
 
-Granularity
-& Tile-level granularity: one task corresponds to one tile of one frame. \\
+The main recorded metrics are:
+\begin{equation}
+    T_{wall},
+\end{equation}
+the total end-to-end runtime;
+\begin{equation}
+    T_{compute,r},
+\end{equation}
+the YOLO inference and local processing time of rank \(r\);
+\begin{equation}
+    T_{comm,r},
+\end{equation}
+the time rank \(r\) spends sending or receiving results; and
+\begin{equation}
+    T_{no\_comm}=T_{wall}-T_{comm}.
+\end{equation}
+These metrics are necessary because speedup alone is not enough. A run can have many parallel tasks but still be slow if rank 0 spends too much time gathering detections, or if a slow machine receives too many tasks.
 
-Mapping technique
-& 1D task mapping: all frame-tile tasks are flattened into a list and assigned to MPI ranks using static block-cyclic distribution. \\
-
-Communication strategy
-& Each rank computes locally, then sends detections and timing results to rank 0 for merging. \\
-
-Communication topology
-& Master-worker topology: rank 0 gathers and post-processes results, while other ranks mainly perform inference. \\
-
-Communication mode
-& Blocking gather communication is used after local inference. \\
-
-Load balancing
-& Load balancing is considered through tile size, block-cyclic task assignment, and weighted process placement. \\
-
-Correctness check
-& The parallel output is correct if its frame-level people counts match the serial YOLO result after the same post-processing. \\
-
-\bottomrule
-\end{tabularx}
-\end{table}
+\section{Load Balancing and Metrics}
+For each rank \(r\), the total rank time is modeled as:
+\begin{equation}
+    T_r = T_{compute,r} + T_{comm,r} + T_{idle,r}.
+\end{equation}
+The idle-gap indicator is:
+\begin{equation}
+    idle\_gap = \frac{T_{max}-T_{min}}{T_{max}},
+\end{equation}
+where \(T_{max}=\max_r T_r\) and \(T_{min}=\min_r T_r\). A smaller idle gap means the workload is distributed more evenly. The course criterion treats a run as balanced when:
+\begin{equation}
+    idle\_gap \le 0.25.
+\end{equation}
+In the YOLO experiments, equal process placement such as \(4/4/4\) does not satisfy this condition, while the best weighted static placement reduces idle time and satisfies the load-balancing criterion.
