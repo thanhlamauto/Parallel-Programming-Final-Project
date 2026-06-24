@@ -26,7 +26,7 @@ A task is one frame-tile inference:
 Rank 0 converts tile-local detections back to full-frame coordinates, applies tile ownership filtering, removes duplicates, and writes final frame counts.
 
 \section{Method 2: VGG11 Convolution Benchmark}
-For the VGG11 method, the input is a CNN feature map. Each convolution layer receives a tensor and computes an output tensor using a fixed \(3 \times 3\) kernel. The repository uses VGG11 without BatchNorm, with scaled channel profiles such as \code{tiny}, \code{small}, and \code{full}. The purpose is to demonstrate data parallelism inside CNN convolution layers.
+For the VGG11 method, the input is a CNN feature map. Each convolution layer receives a tensor and computes an output tensor using a fixed \(3 \times 3\) kernel. The repository uses VGG11 without BatchNorm, with channel profiles such as \code{tiny}, \code{small}, and \code{full}. The purpose is to demonstrate data parallelism inside CNN convolution layers.
 
 For each convolution layer, \(P\) MPI ranks are arranged into a \(P_r \times P_c\) process grid. The spatial dimensions \(H \times W\) of the feature map are split into 2D blocks. Each rank computes the convolution output for its local core block. Since a \(3 \times 3\) convolution needs neighboring pixels, ranks must exchange one-pixel halo rows, columns, and corners before local computation.
 

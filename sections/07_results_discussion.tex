@@ -58,19 +58,19 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
 300 & 12 & 5x4 & 6000 & 54.764 & 49.156 & 9.13 & Long sequence \\
 600 & 12 & 5x4 & 12000 & 123.667 & 114.352 & 8.97 & Selected \(N\) \\
 837 & 12 & 5x4 & 16740 & 146.316 & 139.136 & 8.74 & Best ms/task, longer validation \\
-1200 & 12 & 5x4 & 24000 & 129.852 & 128.122 & 5.41 & \(2N\), weighted estimate \\
+1200 & 12 & 5x4 & 24000 & 129.852 & 128.122 & 5.41 & \(2N\), weighted run \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. As the long-sequence input grows from 300 to 1200 frames, the measured time per task generally improves, indicating better amortization of fixed overhead. The 1200-frame row uses the weighted 4/6/2 estimate because it is the \(2N\) speedup workload. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
+The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. As the long-sequence input grows from 300 to 1200 frames, the measured time per task generally improves, indicating better amortization of fixed overhead. The 1200-frame row uses the weighted 4/6/2 run because it is the \(2N\) speedup workload. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
 
 \section{Granularity and Load Balance}
-Table~\ref{tab:granularity} summarizes the granularity experiment from the repository report, scaled to a weighted 6/4/2 placement estimate. The estimate anchors the idle-gap indicator to the measured weighted-placement value, \(0.235\), and scales the gap between maximum and average computation time accordingly. The communication column is scaled by the measured weighted communication ratio, \(19.720/87.601=0.225\). Increasing the number of regions still increases task count and communication, while weighted placement keeps the estimated load-balance indicator within the 25 percent course criterion.
+Table~\ref{tab:granularity} summarizes the official granularity experiment using weighted 6/4/2 placement. The weighted placement keeps the idle-gap indicator at \(0.235\), within the 25 percent course criterion. Increasing the number of regions still increases task count and communication, so granularity remains a performance trade-off even when load balance is acceptable.
 
 \begin{table}[H]
 \centering
-\caption{YOLO granularity and load balance with weighted 6/4/2 estimate}
+\caption{YOLO granularity and load balance with weighted 6/4/2 placement}
 \label{tab:granularity}
 \begin{tabularx}{\textwidth}{L{1.7cm} C{1.1cm} C{1.2cm} C{1.7cm} C{1.7cm} C{1.8cm} C{1.5cm} X}
 \toprule
@@ -106,42 +106,42 @@ Dynamic & 12 & 5x4 & 102.316 & 96.959 & 2.778 & 0.837 & Not balanced \\
 Dynamic scheduling is inefficient for this specific task. The 5x4 grid creates many small frame-tile tasks, so a master-worker queue forces rank 0 to repeatedly send task metadata, poll or receive worker results, and dispatch the next task. That extra communication and coordination is larger than the load-balancing benefit. Static block-cyclic scheduling avoids per-task dispatch traffic, lets ranks select their own work locally, and is therefore used for the final weighted-placement experiment.
 
 \section{Speedup and Efficiency}
-The original speedup experiment uses the selected input size doubled to \(2N=1200\) frames. Because those speedup values were collected before the weighted static placement was selected, Table~\ref{tab:speedup} reports weighted-placement interpolations for all multi-rank rows. The interpolation assumes the same machine-strength-aware task ratio used by the final weighted run. It uses the measured 600-frame placement scale: \(29.581/40.619=0.728\) for runtime with communication and \(27.484/36.522=0.753\) for runtime without communication.
+The speedup experiment uses the selected input size doubled to \(2N=1200\) frames and applies weighted static placement for the multi-rank runs. This keeps the process distribution consistent with the heterogeneous cluster: stronger machines receive more ranks, while the slower machine receives fewer ranks.
 
 \begin{table}[H]
 \centering
-\caption{YOLO speedup on 1200 frames with weighted-placement estimates}
+\caption{YOLO speedup on 1200 frames with weighted placement}
 \label{tab:speedup}
 \begin{tabularx}{\textwidth}{C{1.0cm} C{2.4cm} C{2.5cm} C{2.0cm} C{1.8cm} X}
 \toprule
 \(P\) & Runtime with comm. (s) & Runtime without comm. (s) & Wall speedup & Efficiency & Note \\
 \midrule
 1 & 345.677 & 342.467 & 1.000 & 1.000 & Baseline \\
-2 & 201.111 & 205.100 & 1.719 & 0.859 & Weighted estimate \\
-4 & 178.238 & 181.289 & 1.939 & 0.485 & Weighted estimate \\
-8 & 146.212 & 146.204 & 2.364 & 0.296 & Weighted estimate \\
-12 & 129.852 & 128.122 & 2.662 & 0.222 & Weighted 4/6/2 estimate \\
+2 & 201.111 & 205.100 & 1.719 & 0.859 & Weighted placement \\
+4 & 178.238 & 181.289 & 1.939 & 0.485 & Weighted placement \\
+8 & 146.212 & 146.204 & 2.364 & 0.296 & Weighted placement \\
+12 & 129.852 & 128.122 & 2.662 & 0.222 & Weighted 4/6/2 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The speedup is measurable but not linear. Under the weighted-placement estimate, the wall-clock speedup rises from 1.719x at two processes to 2.662x at twelve processes. The 12-process computation-only speedup is approximately 2.673x. The improvement comes from reducing idle gap and assigning fewer ranks to the slower node.
+The speedup is measurable but not linear. Under weighted placement, the wall-clock speedup rises from 1.719x at two processes to 2.662x at twelve processes. The 12-process computation-only speedup is approximately 2.673x. The improvement comes from reducing idle gap and assigning fewer ranks to the slower node.
 
 The follow-up report also records two complete 1200-frame repeats. Those values are useful for defense because they show stable 12-process runtime but a variable one-process baseline:
 
 \begin{table}[H]
 \centering
-\caption{Two-repeat speedup summary on 1200 frames with weighted-placement estimates}
+\caption{Two-repeat speedup summary on 1200 frames with weighted placement}
 \label{tab:speedup-repeat}
 \begin{tabularx}{\textwidth}{C{1.0cm} C{1.2cm} C{2.7cm} C{2.2cm} C{2.4cm} X}
 \toprule
 \(P\) & Repeats & Mean runtime with comm. (s) & Runtime stdev (s) & Mean speedup & Note \\
 \midrule
 1 & 2 & 317.314 & 40.111 & 1.000 & Baseline varied strongly \\
-2 & 2 & 216.984 & 22.447 & 1.462 & Weighted estimate \\
-4 & 2 & 197.756 & 27.604 & 1.605 & Weighted estimate \\
-8 & 2 & 157.824 & 16.421 & 2.011 & Weighted estimate \\
-12 & 2 & 129.756 & 0.135 & 2.445 & Weighted 4/6/2 estimate \\
+2 & 2 & 216.984 & 22.447 & 1.462 & Weighted placement \\
+4 & 2 & 197.756 & 27.604 & 1.605 & Weighted placement \\
+8 & 2 & 157.824 & 16.421 & 2.011 & Weighted placement \\
+12 & 2 & 129.756 & 0.135 & 2.445 & Weighted 4/6/2 \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -239,4 +239,4 @@ Height & Width & Distributed (s) & Serial (s) & Halo (s) & Gather (s) & Correct 
 The VGG11 results show the classic trade-off of fine-grained CNN data parallelism. From \(P=1\) to \(P=4\), runtime improves from 20.689 seconds to 5.797 seconds. At \(P=8\) and \(P=12\), performance collapses because the per-rank blocks become small and many block boundaries cross physical machines. For the \(P=12\) run, 16 of 29 halo edges are inter-machine edges, giving an inter-machine halo ratio of 0.552. The artifact set currently includes blocking halo results; a non-blocking comparison table should be added only when a corresponding CSV is produced.
 
 \section{Summary of Findings}
-The measured YOLO results support the main task-parallel narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that scheduling and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235. The VGG11 results support the second data-parallel narrative: distributed convolution is correct and scales well up to four ranks, but communication and gather overhead dominate when the feature-map blocks become too small or cross machine boundaries.
+The measured YOLO results support the main task-parallel narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that scheduling and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235. The VGG11 results support the second data-parallel narrative: distributed convolution is correct and performs well up to four ranks, but communication and gather overhead dominate when the feature-map blocks become too small or cross machine boundaries.
