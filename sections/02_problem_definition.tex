@@ -13,7 +13,14 @@ The target output for each frame is the number of detected people after post-pro
     count(F_i) = |\{b \mid b \text{ is a final person bounding box in } F_i\}|.
 \end{equation}
 
-The detector backend is a pretrained YOLO model through a local Python worker process \cite{ultralytics2026}. The MPI program does not split YOLO neural-network kernels. Instead, MPI distributes repeated YOLO calls over frame-tile tasks.
+The detector backend is a pretrained YOLO11n model through a local Python worker process \cite{ultralytics2026}. YOLO11 follows the usual one-stage detector structure with a feature-extraction backbone, a feature-fusion neck, and multi-scale detection heads, as shown in Figure~\ref{fig:yolo11-architecture}. The MPI program does not split YOLO neural-network kernels. Instead, MPI distributes repeated YOLO calls over frame-tile tasks.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/yolo11_architecture.png}
+\caption{YOLO11 object-detection architecture used as the detector backend in this project. Source: Farrugia, CC BY 4.0, Zenodo DOI 10.5281/zenodo.17508018 \cite{farrugia2025yolo11diagram}.}
+\label{fig:yolo11-architecture}
+\end{figure}
 
 For a tile grid with \(R\) rows and \(C\) columns, frame \(F_i\) is decomposed into:
 \begin{equation}
