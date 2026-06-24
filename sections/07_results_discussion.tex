@@ -185,6 +185,28 @@ The speedup experiment uses the selected input size doubled to \(2N=1200\) frame
 
 The speedup is measurable but sublinear. Wall-clock speedup rises from 1.719x at two processes to 2.662x at twelve processes, showing that the MPI pipeline benefits from distributing frame-tile inference across machines. However, efficiency drops as \(P\) increases, so each added process contributes less marginal benefit because of communication, aggregation at rank 0, heterogeneous node speeds, and duplicated work around tile boundaries.
 
+The parallel cost confirms the same trend. Using the standard cost model \(C_p=pT_p\), with \(T_p\) taken from the runtime including communication, the two-process run costs \(2\times201.111=402.222\) process-seconds, while the twelve-process run costs \(12\times129.852=1558.224\) process-seconds. Compared with the serial cost \(C_1=345.677\), the overhead \(O_p=C_p-C_1\) grows from 56.545 process-seconds at \(P=2\) to 1212.547 process-seconds at \(P=12\).
+
+\begin{table}[H]
+\centering
+\caption{Parallel cost for the 1200-frame speedup experiment}
+\label{tab:parallel-cost}
+\small
+\begin{tabularx}{0.88\textwidth}{C{0.8cm} C{2.1cm} C{2.2cm} X}
+\toprule
+\(P\) & Runtime \(T_p\) (s) & Cost \(C_p=pT_p\) & Overhead \(O_p=C_p-C_1\) \\
+\midrule
+1 & 345.677 & 345.677 & 0.000 \\
+2 & 201.111 & 402.222 & 56.545 \\
+4 & 178.238 & 712.952 & 367.275 \\
+8 & 146.212 & 1169.696 & 824.019 \\
+12 & 129.852 & 1558.224 & 1212.547 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Therefore the implementation is useful for reducing wall-clock time, but it is not cost-optimal at high process counts: the cluster spends much more total process time to obtain a smaller elapsed time. In this workload, \(P=12\) is justified by the course requirement and by the 2.662x wall-clock speedup, while the cost analysis explains why efficiency falls to 0.222.
+
 \section{Weighted Static Placement}
 This experiment tests whether equal rank placement is appropriate on the heterogeneous three-MacBook cluster. The best measured weighted placement assigns four ranks to the master, six to node1, and two to node2, giving more ranks to the stronger machine and fewer ranks to the slower one.
 
