@@ -40,7 +40,6 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
 150 & 12 & 4x3 & 1800 & 23.585 & 17.103 & 13.10 & Compact quick test \\
 300 & 12 & 5x4 & 6000 & 54.764 & 49.156 & 9.13 & Long sequence \\
 600 & 12 & 5x4 & 12000 & 123.667 & 114.352 & 8.97 & Selected \(N\) \\
-837 & 12 & 5x4 & 16740 & 146.316 & 139.136 & 8.74 & Best ms/task, longer validation \\
 1200 & 12 & 5x4 & 24000 & 129.852 & 128.122 & 5.41 & \(2N\), weighted run \\
 \bottomrule
 \end{tabularx}
@@ -56,7 +55,7 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
     ylabel={Runtime (s)},
     xmin=0, xmax=1250,
     ymin=0, ymax=160,
-    xtick={30,150,300,600,837,1200},
+    xtick={30,150,300,600,1200},
     ymajorgrids=true,
     grid style={gray!20},
     legend pos=north west,
@@ -64,11 +63,11 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
 ]
 \addplot[color=blue, mark=*] coordinates {
     (30,9.165) (60,12.570) (100,17.776) (150,23.585)
-    (300,54.764) (600,123.667) (837,146.316) (1200,129.852)
+    (300,54.764) (600,123.667) (1200,129.852)
 };
 \addplot[color=red!70!black, mark=square*] coordinates {
     (30,2.999) (60,6.801) (100,11.596) (150,17.103)
-    (300,49.156) (600,114.352) (837,139.136) (1200,128.122)
+    (300,49.156) (600,114.352) (1200,128.122)
 };
 \legend{with communication, without communication}
 \end{axis}
