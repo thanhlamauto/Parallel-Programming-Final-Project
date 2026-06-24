@@ -34,6 +34,7 @@
 ]{hyperref}
 \usepackage{fancyhdr}
 \usepackage{lastpage}
+\usepackage{titlesec}
 
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
@@ -45,10 +46,20 @@
 \newcommand{\algorithmautorefname}{Algorithm}
 
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0.25em}
+\setlength{\parskip}{0.18em}
 \setlist{nosep,leftmargin=*}
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{2}
+\raggedbottom
+\titleclass{\chapter}{straight}
+\titleformat{\chapter}[hang]{\normalfont\huge\bfseries}{\thechapter}{1em}{}
+\titlespacing*{\chapter}{0pt}{0.4em}{0.7em}
+\titlespacing*{\section}{0pt}{0.6em}{0.35em}
+\titlespacing*{\subsection}{0pt}{0.45em}{0.25em}
+\captionsetup{skip=4pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
 
 \lstset{
     basicstyle=\ttfamily\small,
