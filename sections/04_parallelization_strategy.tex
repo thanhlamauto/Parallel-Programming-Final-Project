@@ -19,172 +19,44 @@ All frame-tile tasks are flattened into a one-dimensional list. For task index \
     owner(task_i) = \left\lfloor \frac{i}{k} \right\rfloor \bmod P.
 \end{equation}
 Static scheduling has low dispatch overhead because ranks can determine their own tasks locally. The measured repository results show that this advantage matters for the 600-frame 5x4 tiled YOLO workload.
-\subsection{Communication and Merging}
+\section{Parallel-Programming Focus}
 
-After each rank finishes its assigned frame-tile tasks, it sends two types of data to rank 0: detected bounding boxes and timing metrics. The communication pattern is centralized: all worker ranks send their local results to rank 0, and rank 0 performs the final merge.
+\begin{table}[H]
+\centering
+\caption{Parallel-programming concepts in the YOLO MPI pipeline}
+\label{tab:yolo-concepts}
+\begin{tabularx}{\textwidth}{L{3.6cm} X}
+\toprule
+Concept & YOLO MPI implementation \\
+\midrule
 
-For each detected box, the worker stores:
-\[
-    (frame\_id,\ tile\_id,\ x_1,y_1,x_2,y_2,\ score,\ class)
-\]
-where the box coordinates are still relative to the local tile. Rank 0 first converts these tile-local coordinates back to the original frame coordinates:
-\[
-    x^{global} = x^{local} + x_s,\qquad
-    y^{global} = y^{local} + y_s,
-\]
-where \((x_s,y_s)\) is the top-left coordinate of the tile inside the original frame.
+Parallelism level 
+& Task-level parallelism: each task runs YOLO on one frame tile. \\
 
-For each frame \(F_i\), rank 0 merges all boxes from its tiles:
-\[
-    B_i^{raw} = \bigcup_{j=1}^{RC} B_{i,j}.
-\]
+Decomposition 
+& Hybrid temporal-spatial decomposition: video frames are divided into smaller image tiles. \\
 
-Since a person near a tile boundary may appear in more than one tile, duplicate boxes can occur. Therefore, rank 0 applies tile-owner filtering and then global non-maximum suppression:
-\[
-    B_i^{final} = NMS(B_i^{raw}, \theta).
-\]
+Granularity
+& Tile-level granularity: one task corresponds to one tile of one frame. \\
 
-The final people count for frame \(F_i\) is:
-\[
-    count(F_i)=|B_i^{final}|.
-\]
+Mapping technique
+& 1D task mapping: all frame-tile tasks are flattened into a list and assigned to MPI ranks using static block-cyclic distribution. \\
 
-This centralized merging step is necessary because each rank only sees its own tiles, while duplicate removal must be performed using all detections from the same frame.
+Communication strategy
+& Each rank computes locally, then sends detections and timing results to rank 0 for merging. \\
 
-\subsection{YOLO Algorithm Sketch}
+Communication topology
+& Master-worker topology: rank 0 gathers and post-processes results, while other ranks mainly perform inference. \\
 
-\begin{algorithm}[H]
-\caption{Static MPI YOLO people-counting pipeline}
-\begin{algorithmic}[1]
-\STATE Input video contains \(N\) frames. Each frame is split into an \(R \times C\) grid.
-\STATE Build the task list \(\mathcal{T}\), where each task is one pair:
-\[
-    task = (frame\_id,\ tile\_id).
-\]
-\STATE Flatten all tasks into a 1D list. For task index \(q\), assign the owner rank by:
-\[
-    owner(q)=\left\lfloor \frac{q}{K} \right\rfloor \bmod P,
-\]
-where \(K\) is the chunk size and \(P\) is the number of MPI ranks.
+Communication mode
+& Blocking gather communication is used after local inference. \\
 
-\FOR{each MPI rank \(r\) in parallel}
-    \STATE Select all tasks whose owner is \(r\).
-    \FOR{each selected task \((i,j)\)}
-        \STATE Crop tile \(j\) from frame \(F_i\).
-        \STATE Run YOLO inference on the tile.
-        \STATE Keep only detections with class \texttt{person}.
-        \STATE Store local bounding boxes and timing metrics.
-    \ENDFOR
-\ENDFOR
+Load balancing
+& Load balancing is considered through tile size, block-cyclic task assignment, and weighted process placement. \\
 
-\STATE Gather all serialized detections and rank metrics to rank 0.
+Correctness check
+& The parallel output is correct if its frame-level people counts match the serial YOLO result after the same post-processing. \\
 
-\IF{rank is 0}
-    \FOR{each frame \(F_i\)}
-        \STATE Convert tile-local boxes to global frame coordinates.
-        \STATE Merge boxes from all tiles of frame \(F_i\).
-        \STATE Apply tile-owner filtering to reduce boundary duplicates.
-        \STATE Apply global NMS.
-        \STATE Compute:
-        \[
-            count(F_i)=|B_i^{final}|.
-        \]
-    \ENDFOR
-    \STATE Write per-frame counts and runtime metrics to CSV files.
-\ENDIF
-\end{algorithmic}
-\end{algorithm}
-
-\section{Weighted Process Placement}
-
-The cluster is heterogeneous because the three machines do not have the same CPU throughput. If every machine receives the same number of MPI ranks, the faster machines may finish early and wait for the slower machine. This creates idle time and increases the total runtime.
-
-Weighted process placement keeps the same static block-cyclic task mapping, but changes how many MPI ranks are launched on each physical machine. A stronger machine receives more ranks, so it receives more positions in the global task stream. A weaker machine receives fewer ranks, so it receives less work.
-
-For example, the report compares:
-
-\[
-    4/4/4
-\]
-
-against weighted placements such as:
-
-\[
-    3/6/3
-\]
-
-and:
-
-\[
-    4/6/2.
-\]
-
-Here, \(4/6/2\) means machine 1 runs 4 MPI ranks, machine 2 runs 6 MPI ranks, and machine 3 runs 2 MPI ranks.
-
-The scheduling formula does not change:
-\[
-    owner(q)=\left\lfloor \frac{q}{K} \right\rfloor \bmod P.
-\]
-
-Only the mapping from MPI ranks to physical machines changes. Therefore, if runtime and idle gap improve, the improvement comes from better process placement, not from a different scheduling algorithm.
-
-\section{Metric Collection}
-
-Each experiment records both correctness and timing metrics. Correctness is checked using the final people counts for each frame. Timing metrics are collected to explain where the runtime is spent.
-
-The main recorded metrics are:
-
-\[
-    T_{wall}
-\]
-total end-to-end runtime,
-
-\[
-    T_{compute,r}
-\]
-YOLO inference and local processing time of rank \(r\),
-
-\[
-    T_{comm,r}
-\]
-time spent sending or receiving results,
-
-and:
-
-\[
-    T_{no\_comm}=T_{wall}-T_{comm}.
-\]
-
-These metrics are necessary because speedup alone is not enough. A run can have many parallel tasks but still be slow if rank 0 spends too much time gathering detections, or if a slow machine receives too many tasks.
-
-\section{Load Balancing and Metrics}
-
-For each rank \(r\), the total rank time is modeled as:
-
-\[
-    T_r = T_{compute,r} + T_{comm,r} + T_{idle,r}.
-\]
-
-The maximum and minimum rank times are:
-
-\[
-    T_{max} = \max_r T_r,
-\]
-
-\[
-    T_{min} = \min_r T_r.
-\]
-
-The idle-gap indicator is:
-
-\[
-    idle\_gap = \frac{T_{max}-T_{min}}{T_{max}}.
-\]
-
-A smaller idle gap means the workload is distributed more evenly. The course criterion treats a run as balanced when:
-
-\[
-    idle\_gap \le 0.25.
-\]
-
-In the YOLO experiments, equal process placement such as \(4/4/4\) does not satisfy this condition, while the best weighted static placement reduces idle time and satisfies the load-balancing criterion.
+\bottomrule
+\end{tabularx}
+\end{table}
