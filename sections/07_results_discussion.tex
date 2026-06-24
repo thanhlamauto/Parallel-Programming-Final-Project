@@ -25,14 +25,14 @@ Table~\ref{tab:accuracy} compares detector accuracy against MOT17 ground-truth c
 \centering
 \caption{YOLO accuracy comparison across baseline and tile-splitting configurations}
 \label{tab:accuracy}
-\begin{tabularx}{\textwidth}{L{3.5cm} C{1.0cm} C{1.3cm} C{2.6cm} X}
+\begin{tabularx}{\textwidth}{L{2.8cm} C{0.9cm} C{1.0cm} C{1.1cm} C{1.1cm} C{1.4cm} C{1.3cm} C{1.3cm}}
 \toprule
-Configuration & Grid & Frames & Accuracy vs baseline & Interpretation \\
+Configuration & Grid & Frames & MAE & RMSE & Percent error & Exact match & Pred. avg. \\
 \midrule
-Single-machine YOLO baseline & 1x1 & 300 & Reference & Normal detector output without spatial tiling. \\
-MPI tiled YOLO & 2x2 & 300 & Equivalent & Tiling preserves detector accuracy relative to baseline. \\
-MPI tiled YOLO & 4x3 & 300 & -3\% & Slight accuracy loss from finer tile splitting and merge effects. \\
-MPI tiled YOLO & 5x4 & 300 & -5\% & Larger accuracy loss as tile granularity becomes finer. \\
+Single-machine YOLO baseline & 1x1 & 300 & 7.983 & 8.269 & 0.490 & 0.000 & 8.223 \\
+MPI tiled YOLO & 2x2 & 300 & 7.983 & 8.269 & 0.490 & 0.000 & 8.223 \\
+MPI tiled YOLO & 4x3 & 300 & 8.223 & 8.517 & 0.504 & 0.000 & 7.977 \\
+MPI tiled YOLO & 5x4 & 300 & 8.383 & 8.682 & 0.514 & 0.000 & 7.812 \\
 \bottomrule
 \end{tabularx}
 \end{table}
