@@ -1,116 +1,201 @@
 \chapter{Results and Discussion}
 
-No completed experiment CSV files were present in the inspected repository snapshot. This chapter is a results template for the final measured run package. It must be filled only from real CSV outputs; no runtime, speedup, correctness, hardware, or communication values are inferred.
-
-\section{Correctness Verification}
-Correctness is evaluated by running the implementation with \code{--verify 1}. The expected evidence is \code{summary.csv}, \code{frame\_counts.csv}, \code{bboxes.csv}, and \code{rank\_metrics.csv} for both static and dynamic scheduling.
+\section{YOLO Parallel Correctness}
+Table~\ref{tab:correctness} reports the serial-versus-MPI correctness result recorded in the repository report. The MPI run produced the same frame counts as the serial baseline on the tested sequence.
 
 \begin{table}[H]
 \centering
-\caption{Correctness verification table to be filled from measured CSV}
+\caption{YOLO serial-versus-MPI correctness}
 \label{tab:correctness}
-\begin{tabularx}{\textwidth}{L{2.2cm} C{1.4cm} C{1.5cm} C{1.6cm} C{2.1cm} X}
+\begin{tabularx}{\textwidth}{L{2.2cm} C{2.1cm} C{2.1cm} C{2.2cm} C{2.0cm} X}
 \toprule
-Schedule & Frames & Grid & Processes & Correctness pass & Evidence \\
+Result & Frames & Mismatched frames & Max count error & Mean error & Evidence \\
 \midrule
-Static & Pending CSV & Pending CSV & Pending CSV & Pending CSV & static summary \\
-Dynamic & Pending CSV & Pending CSV & Pending CSV & Pending CSV & dynamic summary \\
+Passed & 30 & 0 & 0 & 0.000 & repository report \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{Input Size Selection}
-The input-size sweep chooses \(N\) so that wall-clock runtime is approximately 120--180 seconds on the selected cluster configuration.
+This validates the parallel pipeline for the tested configuration. It indicates that task splitting, MPI result collection, coordinate remapping, duplicate removal, and final counting preserve the serial pipeline output.
+
+\section{Detector Accuracy Against Ground Truth}
+Table~\ref{tab:accuracy} compares YOLO predicted frame counts against MOT17 ground-truth counts. This is a model-accuracy measurement, not a parallel-correctness measurement.
 
 \begin{table}[H]
 \centering
-\caption{Input size selection table to be filled from \code{find\_N.csv}}
-\label{tab:input-size}
-\begin{tabularx}{\textwidth}{C{1.3cm} C{1.4cm} C{1.5cm} C{2.5cm} C{2.7cm} X}
+\caption{YOLO count accuracy against MOT17 ground truth}
+\label{tab:accuracy}
+\begin{tabularx}{\textwidth}{C{1.1cm} C{1.5cm} C{1.5cm} C{1.6cm} C{1.6cm} C{1.8cm} C{1.8cm}}
 \toprule
-\(N\) & Grid & \(P\) & Runtime with comm. & Runtime without comm. & Selection note \\
+Frames & MAE & RMSE & Percent error & Exact match & GT avg. & Pred. avg. \\
 \midrule
-Pending CSV & Pending & Pending & Pending CSV & Pending CSV & Pending CSV \\
+300 & 7.983 & 8.269 & 0.490 & 0.000 & 16.207 & 8.223 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The detector undercounts crowded MOT17 scenes. This limitation is expected for a pretrained detector running without dataset-specific fine-tuning. The important report distinction is that MPI correctness passes even though detector-versus-ground-truth accuracy is imperfect.
+
+\section{Input-Size Selection}
+The compact MOT17 subset is useful for quick runs but does not reach the required two-to-three-minute runtime. The long-sequence experiment in Table~\ref{tab:input-size} selects \(N=600\) frames because the 12-process wall-clock runtime is 123.667 seconds.
+
+\begin{table}[H]
+\centering
+\caption{YOLO input-size selection}
+\label{tab:input-size}
+\begin{tabularx}{\textwidth}{C{1.2cm} C{1.3cm} C{1.5cm} C{2.2cm} C{2.4cm} X}
+\toprule
+Frames & \(P\) & Grid & Runtime with comm. (s) & Runtime without comm. (s) & Selection note \\
+\midrule
+30 & 12 & 4x3 & 9.165 & 2.999 & Compact quick test \\
+60 & 12 & 4x3 & 12.570 & 6.801 & Compact quick test \\
+100 & 12 & 4x3 & 17.776 & 11.596 & Compact quick test \\
+150 & 12 & 4x3 & 23.585 & 17.103 & Compact quick test \\
+300 & 12 & 5x4 & 54.764 & 49.156 & Long sequence \\
+600 & 12 & 5x4 & 123.667 & 114.352 & Selected \(N\) \\
+837 & 12 & 5x4 & 146.316 & 139.136 & Longer validation \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{Granularity and Load Balance}
-For each selected granularity case, the report will compute:
-\begin{equation}
-    G = \frac{N \times R \times C}{P}, \qquad
-    imbalance = \frac{T_{max} - T_{min}}{T_{max}}.
-\end{equation}
+Table~\ref{tab:granularity} summarizes the granularity experiment from the repository report. Increasing the number of regions increases task count, communication, and idle time. None of these compact-dataset runs satisfy the 25 percent idle-gap balance criterion.
 
 \begin{table}[H]
 \centering
-\caption{Per-rank granularity and load-balance table to be filled from \code{rank\_metrics.csv}}
+\caption{YOLO granularity and load balance}
 \label{tab:granularity}
-\begin{tabularx}{\textwidth}{C{1.0cm} C{1.6cm} C{1.8cm} C{1.9cm} C{1.8cm} C{1.7cm} X}
+\begin{tabularx}{\textwidth}{L{1.7cm} C{1.1cm} C{1.2cm} C{1.7cm} C{1.7cm} C{1.8cm} C{1.5cm} X}
 \toprule
-Rank & Tasks & Compute ms & YOLO ms & Comm. ms & Idle ms & Host \\
+Grid & \(P\) & Tasks & Max comp. (s) & Avg comp. (s) & Total comm. (s) & Idle gap & Balance \\
 \midrule
-Pending & Pending CSV & Pending CSV & Pending CSV & Pending CSV & Pending CSV & Pending CSV \\
+1x1 & 12 & 150 & 1.367 & 0.483 & 47.417 & 0.838 & Not balanced \\
+2x2 & 12 & 600 & 5.447 & 2.205 & 72.434 & 0.802 & Not balanced \\
+4x3 & 12 & 1800 & 16.329 & 6.375 & 154.944 & 0.809 & Not balanced \\
+5x4 & 12 & 3000 & 25.263 & 9.133 & 230.059 & 0.824 & Not balanced \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+The result shows that simply making tasks finer is not enough. Finer tiles create more scheduling opportunities, but they also increase intermediate detections, communication, and master-side merging. This motivates the scheduler and weighted-placement experiments.
 
 \section{Static vs Dynamic Scheduling}
-Static and dynamic scheduling must be compared using the same \(N\), \(P\), tile grid, detector, model, and source video.
+The full-cluster scheduler comparison used 12 processes, 600 frames, a 5x4 grid, and CPU execution. Static scheduling is much faster on this measured workload.
 
 \begin{table}[H]
 \centering
-\caption{Static versus dynamic scheduling table to be filled from \code{scheduler\_comparison.csv}}
+\caption{Static versus dynamic scheduling on 600 frames}
 \label{tab:scheduler}
-\begin{tabularx}{\textwidth}{L{1.8cm} C{1.2cm} C{1.4cm} C{2.3cm} C{2.3cm} C{1.8cm} X}
+\begin{tabularx}{\textwidth}{L{1.8cm} C{1.0cm} C{1.4cm} C{2.2cm} C{2.4cm} C{1.6cm} C{1.5cm} X}
 \toprule
-Schedule & \(P\) & Grid & Runtime with comm. & Runtime without comm. & Imbalance & Note \\
+Scheduler & \(P\) & Grid & Runtime with comm. (s) & Runtime without comm. (s) & Imbalance & Idle gap & Balance \\
 \midrule
-Static & Pending & Pending & Pending CSV & Pending CSV & Pending CSV & Pending CSV \\
-Dynamic & Pending & Pending & Pending CSV & Pending CSV & Pending CSV & Pending CSV \\
+Static & 12 & 5x4 & 40.619 & 36.522 & 1.202 & 0.466 & Not balanced \\
+Dynamic & 12 & 5x4 & 102.316 & 96.959 & 2.778 & 0.837 & Not balanced \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+Dynamic scheduling is conceptually useful for irregular workloads, but this result shows it is not automatically faster. For the 600-frame tiled YOLO workload, the cost of dispatching many small tasks and collecting results at rank 0 outweighs the load-balancing benefit. Static scheduling is therefore used for the final weighted-placement experiment.
 
 \section{Speedup and Efficiency}
-Speedup and efficiency are computed from the measured runtime:
-\begin{equation}
-    S_p = \frac{T_1}{T_p}, \qquad E_p = \frac{S_p}{p}.
-\end{equation}
-The final speedup experiment should use input size \(2N\). If \(P=24\) exceeds the intended physical-core configuration, it must be labeled as oversubscription.
+The original speedup experiment uses the selected input size doubled to \(2N=1200\) frames. Table~\ref{tab:speedup} reports the recorded speedup values.
 
 \begin{table}[H]
 \centering
-\caption{Speedup table to be filled from \code{speedup.csv}}
+\caption{YOLO speedup on 1200 frames}
 \label{tab:speedup}
-\begin{tabularx}{\textwidth}{C{1.0cm} C{2.1cm} C{2.2cm} C{1.9cm} C{1.9cm} X}
+\begin{tabularx}{\textwidth}{C{1.0cm} C{2.4cm} C{2.5cm} C{2.0cm} C{1.8cm} X}
 \toprule
-\(P\) & Runtime with comm. & Runtime without comm. & \(S_p\) & \(E_p\) & Note \\
+\(P\) & Runtime with comm. (s) & Runtime without comm. (s) & Wall speedup & Efficiency & Note \\
 \midrule
-Pending & Pending CSV & Pending CSV & Pending CSV & Pending CSV & Pending CSV \\
+1 & 345.677 & 342.467 & 1.000 & 1.000 & Baseline \\
+2 & 276.155 & 272.546 & 1.252 & 0.626 & Partial parallelism \\
+4 & 244.747 & 240.905 & 1.412 & 0.353 & More ranks \\
+8 & 200.770 & 194.282 & 1.722 & 0.215 & Multi-machine spread \\
+12 & 178.306 & 170.255 & 1.939 & 0.162 & Best in sweep \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{Communication Overhead}
-Communication overhead is:
-\begin{equation}
-    \frac{T_{comm}}{T_{wall}}.
-\end{equation}
-The numerator must come from \code{comm\_ms\_total} or aggregated \code{rank\_metrics.csv}; the denominator must come from \code{total\_ms\_with\_comm}.
+The speedup is measurable but not linear. At 12 processes, wall-clock speedup is 1.939x and computation-only speedup is approximately 2.011x. The gap comes from communication, scheduling, result collection, duplicate removal, and CPU contention.
+
+The follow-up report also records two complete 1200-frame repeats. Those values are useful for defense because they show stable 12-process runtime but a variable one-process baseline:
 
 \begin{table}[H]
 \centering
-\caption{Communication overhead table to be filled from measured summaries}
-\label{tab:communication}
-\begin{tabularx}{\textwidth}{L{2.2cm} C{1.1cm} C{2.2cm} C{2.0cm} C{2.0cm} X}
+\caption{Two-repeat speedup summary on 1200 frames}
+\label{tab:speedup-repeat}
+\begin{tabularx}{\textwidth}{C{1.0cm} C{1.2cm} C{2.7cm} C{2.2cm} C{2.4cm} X}
 \toprule
-Run & \(P\) & \(T_{wall}\) & \(T_{comm}\) & Ratio & Evidence \\
+\(P\) & Repeats & Mean runtime with comm. (s) & Runtime stdev (s) & Mean speedup & Note \\
 \midrule
-Pending CSV & Pending & Pending CSV & Pending CSV & Pending CSV & communication summary \\
+1 & 2 & 317.314 & 40.111 & 1.000 & Baseline varied strongly \\
+2 & 2 & 297.950 & 30.823 & 1.078 & Small gain \\
+4 & 2 & 271.548 & 37.904 & 1.190 & Moderate gain \\
+8 & 2 & 216.715 & 22.549 & 1.482 & Better cluster use \\
+12 & 2 & 178.174 & 0.186 & 1.781 & Very stable 12-rank time \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{Bottleneck Analysis}
-The final bottleneck analysis should be evidence-driven. Possible causes include task imbalance, heterogeneous host speeds, repeated tile-border work, communication overhead from dynamic scheduling, and Apple MPS contention when multiple ranks share accelerator resources. This draft does not rank those causes because the required CSV evidence has not yet been collected.
+\section{Weighted Static Placement}
+The equal 4/4/4 placement does not meet the 25 percent idle-gap criterion. The best measured weighted placement assigns four ranks to the master, six to node1, and two to node2.
+
+\begin{table}[H]
+\centering
+\caption{Weighted static placement on heterogeneous cluster}
+\label{tab:weighted}
+\begin{tabularx}{\textwidth}{L{2.8cm} L{2.6cm} C{2.1cm} C{2.3cm} C{1.5cm} X}
+\toprule
+Placement & Distribution & Runtime with comm. (s) & Runtime without comm. (s) & Idle gap & Balance \\
+\midrule
+Uniform & 4/4/4 & 40.619 & 36.522 & 0.466 & Not balanced \\
+Weighted & 3/6/3 & 34.712 & 30.339 & 0.371 & Not balanced \\
+Weighted & 4/6/2 & 29.581 & 27.484 & 0.235 & Balanced \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+This result supports the claim that processor assignment matters on a heterogeneous physical cluster. Equal rank placement gives every host the same number of processes, but the machines do not have equal throughput. Weighted placement reduces runtime and satisfies the load-balance criterion.
+
+\section{Local-Only and Full-Cluster Observation}
+Additional experiments show that increasing process count on a single machine can saturate local resources. On the master-only 600-frame 5x4 run, 2 processes achieved 288.494 seconds while 4 and 8 processes were slower. In contrast, the full three-machine 600-frame dynamic sweep improved from 202.715 seconds at 1 process to 90.900 seconds at 12 processes. This supports the defense point that physical distribution matters more than only increasing the number of local MPI ranks.
+
+\section{VGG11 Method 2 Pending Tables}
+The VGG11 convolution method still needs final measured CSV values in this checkout. The following tables are intentionally left as a fill-in framework.
+
+\begin{table}[H]
+\centering
+\caption{Pending VGG11 correctness table}
+\label{tab:vgg-correctness}
+\begin{tabularx}{\textwidth}{L{2.6cm} C{1.4cm} C{1.6cm} C{2.0cm} C{2.0cm} X}
+\toprule
+Profile & \(P\) & Grid & Halo mode & Max error & Result/evidence \\
+\midrule
+Pending & Pending & Pending & Blocking & Pending CSV & Pending \code{summary.csv} \\
+Pending & Pending & Pending & Non-blocking & Pending CSV & Pending \code{summary.csv} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Pending VGG11 speedup and communication table}
+\label{tab:vgg-speedup}
+\begin{tabularx}{\textwidth}{C{1.0cm} C{1.6cm} C{1.8cm} C{2.0cm} C{2.0cm} C{1.6cm} X}
+\toprule
+\(P\) & Input size & Halo mode & Runtime (s) & Halo comm. (s) & Speedup & Evidence \\
+\midrule
+1 & Pending & Blocking & Pending CSV & Pending CSV & 1.000 & Pending \\
+2 & Pending & Blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
+4 & Pending & Blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
+8 & Pending & Blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
+12 & Pending & Blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
+12 & Pending & Non-blocking & Pending CSV & Pending CSV & Pending CSV & Pending \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Summary of Findings}
+The measured YOLO results support the main parallel-programming narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that scheduling and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235. Method 2 is ready as a report framework but still requires final CSV evidence before numerical conclusions should be written.

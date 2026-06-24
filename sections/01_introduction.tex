@@ -1,16 +1,18 @@
 \chapter{Introduction}
 
-Video people counting is a practical workload for studying MPI parallelization. A video naturally provides many independent units of work, but the cost of each unit can vary because crowded frames, tile boundaries, and heterogeneous machines can create load imbalance. This makes the project suitable for analyzing decomposition, mapping, communication topology, scheduling, and speedup.
+Computer vision inference is a useful setting for studying parallel programming because the workload is computationally heavy, data-rich, and naturally decomposable. A CNN-based detector or classifier can be applied repeatedly across frames, image regions, batches, or feature-map blocks. These repeated operations expose the main concerns of a parallel system: decomposition, mapping, communication, load balancing, correctness, and speedup.
 
-The project parallelizes inference around YOLO11n rather than modifying YOLO itself. Each MPI rank runs local detector work, while the C++17/OpenMPI program controls task generation, rank scheduling, aggregation, and CSV output. The report therefore focuses on the system behavior of the MPI runtime.
+This project focuses on CNN-based inference rather than model training. The main implemented application is video people counting with YOLO. Given an input video, the system predicts people bounding boxes and frame-level counts. The expensive work is detector inference over many frames and image tiles. The parallel contribution is the C++17/OpenMPI runtime around the detector: it creates tasks, schedules them across MPI ranks, launches local detector workers, gathers detections, removes duplicates, and writes experiment artifacts.
 
-The final direction is YOLO-only. Repository inspection found an implemented frame/tile YOLO-MPI pipeline with static and dynamic schedulers. It did not find an implemented VGG16, convolution, stencil, or halo-exchange method, so those topics are excluded from the report method and evaluation.
+The repository also contains a second method for CNN convolution parallelization using VGG11 without BatchNorm. This method is structurally different from the YOLO pipeline. Instead of assigning independent frame-tile inference tasks, it decomposes convolution feature maps into 2D blocks, exchanges halo data between neighboring ranks, and compares blocking and non-blocking MPI communication. The checked-out repository contains the implementation and runbook for this direction, but it does not include final measured CSV outputs. Therefore, this report treats Method 2 as a complete framework with pending result tables.
+
+The report separates two types of correctness. Model accuracy means whether YOLO counts match human ground truth from MOT17. Parallel correctness means whether the MPI implementation produces the same result as the serial version of the same pipeline. A detector can undercount in crowded scenes while the parallel implementation remains correct. The measured results from the repository show this distinction clearly: serial and MPI counts match in the correctness test, while detector-versus-ground-truth accuracy remains limited on crowded MOT17 frames.
 
 The main objectives are:
 \begin{itemize}
-    \item define video people counting as a parallel inference workload;
-    \item decompose frames and tiles into independent MPI tasks;
-    \item compare static block-cyclic mapping with dynamic master-worker scheduling;
-    \item describe the actual blocking communication behavior and \code{MPI\_Iprobe} polling;
-    \item prepare a results section that can be filled only from real CSV outputs.
+    \item define CNN-based computer vision inference as a parallel workload;
+    \item present Method 1: task parallelism for YOLO video inference;
+    \item present Method 2: data parallelism for VGG11 convolution layers;
+    \item report measured YOLO correctness, input-size, scheduling, granularity, speedup, and weighted-placement results from the repository;
+    \item leave explicit placeholder tables for experiments that still require final CSV evidence.
 \end{itemize}
