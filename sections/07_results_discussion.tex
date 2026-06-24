@@ -40,26 +40,29 @@ MPI tiled YOLO & 5x4 & 300 & 8.383 & 8.682 & 0.514 & 0.000 & 7.812 \\
 The 2x2 configuration is effectively equivalent to the single-machine baseline, so moderate spatial tiling does not change detector behavior. Finer grids introduce a small degradation: the 4x3 configuration is about 3 percent worse than baseline, and the 5x4 configuration is about 5 percent worse. This suggests that aggressive tile splitting can harm accuracy through border effects and imperfect cross-tile merging, even when it creates more parallel work.
 
 \section{Input-Size Selection}
-The compact MOT17 subset is useful for quick runs but does not reach the required two-to-three-minute runtime. The long-sequence experiment in Table~\ref{tab:input-size} selects \(N=600\) frames because the 12-process wall-clock runtime is 123.667 seconds.
+The compact MOT17 subset is useful for quick runs but does not reach the required two-to-three-minute runtime. Table~\ref{tab:input-size} also reports the total number of frame-tile tasks and the wall-clock time per task, making it easier to compare efficiency across input sizes. The long-sequence experiment selects \(N=600\) frames because the 12-process wall-clock runtime is 123.667 seconds.
 
 \begin{table}[H]
 \centering
 \caption{YOLO input-size selection}
 \label{tab:input-size}
-\begin{tabularx}{\textwidth}{C{1.2cm} C{1.3cm} C{1.5cm} C{2.2cm} C{2.4cm} X}
+\small
+\begin{tabularx}{\textwidth}{C{0.9cm} C{0.8cm} C{0.9cm} C{1.2cm} C{1.7cm} C{1.7cm} C{1.4cm} X}
 \toprule
-Frames & \(P\) & Grid & Runtime with comm. (s) & Runtime without comm. (s) & Selection note \\
+Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (s) & ms/task & Selection note \\
 \midrule
-30 & 12 & 4x3 & 9.165 & 2.999 & Compact quick test \\
-60 & 12 & 4x3 & 12.570 & 6.801 & Compact quick test \\
-100 & 12 & 4x3 & 17.776 & 11.596 & Compact quick test \\
-150 & 12 & 4x3 & 23.585 & 17.103 & Compact quick test \\
-300 & 12 & 5x4 & 54.764 & 49.156 & Long sequence \\
-600 & 12 & 5x4 & 123.667 & 114.352 & Selected \(N\) \\
-837 & 12 & 5x4 & 146.316 & 139.136 & Longer validation \\
+30 & 12 & 4x3 & 360 & 9.165 & 2.999 & 25.46 & Compact quick test \\
+60 & 12 & 4x3 & 720 & 12.570 & 6.801 & 17.46 & Compact quick test \\
+100 & 12 & 4x3 & 1200 & 17.776 & 11.596 & 14.81 & Compact quick test \\
+150 & 12 & 4x3 & 1800 & 23.585 & 17.103 & 13.10 & Compact quick test \\
+300 & 12 & 5x4 & 6000 & 54.764 & 49.156 & 9.13 & Long sequence \\
+600 & 12 & 5x4 & 12000 & 123.667 & 114.352 & 10.31 & Selected \(N\) \\
+837 & 12 & 5x4 & 16740 & 146.316 & 139.136 & 8.74 & Best ms/task, longer validation \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. The 837-frame run has the best measured time per task, but the 600-frame run is selected because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
 
 \section{Granularity and Load Balance}
 Table~\ref{tab:granularity} summarizes the granularity experiment from the repository report. Increasing the number of regions increases task count, communication, and idle time. None of these compact-dataset runs satisfy the 25 percent idle-gap balance criterion.
