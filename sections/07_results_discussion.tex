@@ -242,7 +242,7 @@ Measurement & Main result & Interpretation \\
 Correctness & Passed & Serial and MPI outputs match, so non-blocking collection does not change bounding boxes or final counts. \\
 Detector accuracy & MAE 8.35, RMSE 8.68 & YOLO undercounts crowded MOT17 frames: ground truth averages 16.21 people while prediction averages 7.86. This is a detector limitation, not an MPI error. \\
 Input-size run & 600 frames, 35.45 s & The optimized gather reduces end-to-end runtime compared with the earlier conservative benchmark. \\
-Granularity & 5x4 grid, idle gap 0.540 & Fine tiling creates many payloads and more merge work. Non-blocking transfer reduces communication waiting, but it does not remove natural load imbalance in video inference. \\
+Granularity & 5x4 grid, idle gap 0.198 & Non-blocking transfer and the final placement keep the run below the 0.25 balance threshold, although fine tiling still creates many payloads and more merge work. \\
 Speedup & 3.342x at \(P=12\) & Runtime drops from 264.18 s at \(P=1\) to 79.06 s at \(P=12\), with efficiency about 0.28. \\
 \bottomrule
 \end{tabularx}
