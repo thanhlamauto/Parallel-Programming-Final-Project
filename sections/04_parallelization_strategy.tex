@@ -21,7 +21,7 @@ All frame-tile tasks are flattened into a one-dimensional list. For task index \
 Static scheduling has low dispatch overhead because ranks can determine their own tasks locally. The measured repository results show that this advantage matters for the 600-frame 5x4 tiled YOLO workload.
 
 \subsection{Communication and Merging}
-After each rank finishes its assigned frame-tile tasks, it sends two types of data to rank 0: detected bounding boxes and timing metrics. The communication pattern is centralized. Worker ranks compute locally, then rank 0 gathers the local result payloads and performs the final merge.
+After each rank finishes its assigned frame-tile tasks, it sends two types of data to rank 0: detected bounding boxes and timing metrics. The communication pattern is centralized. Worker ranks compute locally, then rank 0 gathers the local result payloads and performs the final merge. The current implementation uses blocking result transfer, so worker ranks wait during send operations and rank 0 waits while receiving the gathered payloads.
 
 For each detected person box, the worker stores:
 \begin{equation}
