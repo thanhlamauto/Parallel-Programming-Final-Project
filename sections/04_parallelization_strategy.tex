@@ -1,0 +1,193 @@
+\chapter{Parallelization Method}
+
+\section{Level of Parallelism}
+The implementation exploits task-level parallelism over independent frame-tile inference tasks. It also uses data decomposition because the input video is split temporally into frames and spatially into tiles. The neural-network inference inside YOLO11n is not parallelized by this project; it is treated as local work performed by each active MPI rank.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.9cm and 1.1cm,
+    box/.style={draw, rounded corners=2pt, align=center, minimum height=0.8cm, minimum width=2.25cm, fill=gray!8},
+    rank/.style={draw, rounded corners=2pt, align=center, minimum height=0.75cm, minimum width=1.95cm, fill=blue!7},
+    arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[box] (video) {Input video};
+\node[box, right=of video] (tasks) {Frame-tile\\task list};
+\node[rank, right=of tasks, yshift=1.0cm] (r0) {Rank 0\\scheduler};
+\node[rank, right=of tasks] (r1) {Rank 1\\YOLO worker};
+\node[rank, right=of tasks, yshift=-1.0cm] (r2) {Rank 2..P-1\\YOLO workers};
+\node[box, right=1.2cm of r1] (agg) {Rank 0\\NMS + CSV};
+\draw[arrow] (video) -- (tasks);
+\draw[arrow] (tasks) -- (r0);
+\draw[arrow] (tasks) -- (r1);
+\draw[arrow] (tasks) -- (r2);
+\draw[arrow] (r0) -- (agg);
+\draw[arrow] (r1) -- (agg);
+\draw[arrow] (r2) -- (agg);
+\end{tikzpicture}
+\caption{System architecture for offline YOLO-MPI people counting.}
+\label{fig:architecture}
+\end{figure}
+
+\section{Temporal-Spatial Data Decomposition}
+The input is first decomposed across time and then across image space. For \(N\) frames and an \(R \times C\) tile grid, the task set contains:
+\begin{equation}
+    |\mathcal{T}| = N \times R \times C.
+\end{equation}
+The average task granularity per rank is:
+\begin{equation}
+    G = \frac{N \times R \times C}{P},
+\end{equation}
+where \(P\) is the number of MPI ranks. Larger tile grids create more tasks and may improve scheduling flexibility, but they can increase duplicated border work and post-processing overhead.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    tile/.style={draw, minimum width=1.1cm, minimum height=0.55cm, fill=green!7},
+    arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node at (0,1.2) {\(V=\{F_1,\ldots,F_N\}\)};
+\foreach \x/\lab in {0/\(F_1\),1.3/\(F_2\),2.6/\(\cdots\),3.9/\(F_N\)} {
+  \node[draw, minimum width=1.0cm, minimum height=0.7cm, fill=gray!8] at (\x,0.45) {\lab};
+}
+\draw[arrow] (1.95,0.0) -- (1.95,-0.65);
+\node at (1.95,-0.95) {\(F_i \rightarrow \{T_{i,1},\ldots,T_{i,R C}\}\)};
+\foreach \r in {0,1,2} {
+  \foreach \c in {0,1,2,3} {
+    \node[tile] at (-0.15+\c*1.1,-1.55-\r*0.55) {};
+  }
+}
+\node at (5.5,-2.1) {each tile \(T_{i,j}\) becomes one MPI task};
+\draw[arrow] (3.35,-2.1) -- (4.35,-2.1);
+\end{tikzpicture}
+\caption{Temporal-spatial task decomposition from frames to frame-tile tasks.}
+\label{fig:task-decomposition}
+\end{figure}
+
+\section{1D Task Mapping and Static Scheduling}
+Static scheduling flattens all tasks into a one-dimensional list. For task index \(i\), chunk size \(k\), and \(P\) ranks, the owner is:
+\begin{equation}
+    owner(task_i) = \left\lfloor \frac{i}{k} \right\rfloor \bmod P.
+\end{equation}
+With \(k=1\), this becomes round-robin assignment. Static scheduling has low coordination cost because each rank can decide its own tasks locally, but it can suffer when expensive tiles are unevenly distributed.
+
+\section{Dynamic Master-Worker Scheduling}
+Dynamic scheduling uses rank 0 as a master. Rank 0 owns the remaining task queue, dispatches work to available ranks, receives completed result payloads, and sends the next task. If \code{master\_compute} is enabled, rank 0 may also process local tasks while waiting for worker results.
+
+\section{Communication Strategy and Star Topology}
+The dynamic scheduler uses a star topology: workers communicate with rank 0, not directly with each other. In static scheduling, ranks work independently and communicate mainly during final aggregation.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    master/.style={draw, circle, minimum size=1.4cm, fill=blue!10, align=center},
+    worker/.style={draw, rounded corners=2pt, minimum width=1.6cm, minimum height=0.7cm, fill=gray!8, align=center},
+    arrow/.style={<->, >=Latex, thick}
+]
+\node[master] (m) at (0,0) {Rank 0\\master};
+\node[worker] (w1) at (90:3.0cm) {Rank 1};
+\node[worker] (w2) at (30:3.0cm) {Rank 2};
+\node[worker] (w3) at (-30:3.0cm) {Rank 3};
+\node[worker] (w4) at (-90:3.0cm) {Rank 4};
+\node[worker] (w5) at (210:3.0cm) {Rank P-1};
+\node[worker] (w6) at (150:3.0cm) {Other ranks};
+\foreach \name in {w1,w2,w3,w4,w5,w6} {
+  \draw[arrow] (m) -- (\name);
+}
+\end{tikzpicture}
+\caption{Master-worker star communication topology.}
+\label{fig:communication-topology}
+\end{figure}
+
+\section{Blocking Communication and MPI Polling}
+The implementation uses blocking message transfer for task and result payloads. Task dispatch uses \code{MPI\_Send}; task reception and result reception use \code{MPI\_Recv}; static aggregation uses \code{MPI\_Gather} and \code{MPI\_Gatherv}. The dynamic scheduler also calls \code{MPI\_Iprobe} so rank 0 can poll whether a worker result is ready before choosing whether to compute locally. This is polling only: the actual payload transfer is still blocking, and no \code{MPI\_Isend} or \code{MPI\_Irecv} payload path is reported.
+
+\section{Load Balancing Considerations}
+Per-rank time is interpreted as compute time, communication time, and idle/wait time:
+\begin{equation}
+    T_r = T_{compute,r} + T_{comm,r} + T_{idle,r}.
+\end{equation}
+The imbalance metric used in the report is:
+\begin{equation}
+    imbalance = \frac{T_{max} - T_{min}}{T_{max}}.
+\end{equation}
+Dynamic scheduling should help when task costs vary, while static scheduling should have lower scheduling overhead. The final conclusion must be based on measured CSV files rather than expectation.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    task/.style={draw, minimum width=0.65cm, minimum height=0.45cm, fill=green!10},
+    rank/.style={draw, rounded corners=2pt, minimum width=1.0cm, minimum height=0.45cm, fill=blue!7},
+    arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node at (0,1.1) {Static};
+\foreach \i in {0,...,7} {\node[task] at (-2.8+\i*0.7,0.45) {\(\i\)};}
+\foreach \r/\y in {0/-0.2,1/-0.75,2/-1.3} {
+  \node[rank] at (-3.7,\y) {R\r};
+}
+\draw[arrow] (-2.8,0.2) -- (-3.0,-0.2);
+\draw[arrow] (-2.1,0.2) -- (-3.0,-0.75);
+\draw[arrow] (-1.4,0.2) -- (-3.0,-1.3);
+
+\node at (3.2,1.1) {Dynamic};
+\node[draw, rounded corners=2pt, fill=gray!8, minimum width=2.3cm] (q) at (3.2,0.45) {Rank 0 queue};
+\foreach \r/\y in {1/-0.2,2/-0.75,3/-1.3} {
+  \node[rank] (d\r) at (1.9,\y) {R\r};
+  \draw[arrow] (q) -- (d\r);
+}
+\node[align=left] at (5.25,-0.75) {next task goes\\to free rank};
+\end{tikzpicture}
+\caption{Static assignment versus dynamic task dispatch.}
+\label{fig:static-dynamic}
+\end{figure}
+
+\section{Post-processing and NMS Deduplication}
+After inference, detections are converted from tile coordinates to frame coordinates. Rank 0 applies tile ownership filtering, confidence sorting, global non-maximum suppression, and duplicate rules for boxes near tile boundaries. The final frame count is the number of remaining person boxes.
+
+\section{Parallel Algorithm Pseudocode}
+\begin{algorithm}[H]
+\caption{Serial YOLO people-counting baseline}
+\begin{algorithmic}[1]
+\STATE Build task list \(\mathcal{T}\) from \(N\) frames and \(R \times C\) tiles.
+\FOR{each task \(T_{i,j}\in\mathcal{T}\)}
+    \STATE Run local YOLO inference on tile \(T_{i,j}\).
+    \STATE Convert detections to frame coordinates.
+\ENDFOR
+\STATE Apply tile ownership filtering and global NMS per frame.
+\STATE Write \code{frame\_counts.csv}, \code{bboxes.csv}, and \code{summary.csv}.
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Static MPI YOLO inference}
+\begin{algorithmic}[1]
+\STATE All ranks build the same task list \(\mathcal{T}\).
+\FOR{each task index \(i\)}
+    \IF{\(owner(task_i)=\lfloor i/k \rfloor \bmod P\) equals local rank}
+        \STATE Run YOLO inference and store local detections and timing.
+    \ENDIF
+\ENDFOR
+\STATE Gather serialized detections and rank metrics to rank 0.
+\STATE Rank 0 applies post-processing and writes CSV outputs.
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Dynamic master-worker MPI YOLO inference}
+\begin{algorithmic}[1]
+\IF{rank is 0}
+    \STATE Initialize task queue and dispatch initial tasks to workers.
+    \WHILE{unfinished tasks or active workers remain}
+        \STATE Poll for ready worker results using \code{MPI\_Iprobe}.
+        \STATE Receive completed payloads with blocking \code{MPI\_Recv}.
+        \STATE Send next task or termination message with \code{MPI\_Send}.
+        \STATE Optionally compute one local task if \code{master\_compute} is enabled.
+    \ENDWHILE
+    \STATE Post-process all detections and write CSV outputs.
+\ELSE
+    \WHILE{a task is received}
+        \STATE Run YOLO inference and send result payload to rank 0.
+    \ENDWHILE
+\ENDIF
+\end{algorithmic}
+\end{algorithm}

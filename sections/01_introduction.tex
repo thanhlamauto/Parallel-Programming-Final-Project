@@ -1,0 +1,16 @@
+\chapter{Introduction}
+
+Video people counting is a practical workload for studying MPI parallelization. A video naturally provides many independent units of work, but the cost of each unit can vary because crowded frames, tile boundaries, and heterogeneous machines can create load imbalance. This makes the project suitable for analyzing decomposition, mapping, communication topology, scheduling, and speedup.
+
+The project parallelizes inference around YOLO11n rather than modifying YOLO itself. Each MPI rank runs local detector work, while the C++17/OpenMPI program controls task generation, rank scheduling, aggregation, and CSV output. The report therefore focuses on the system behavior of the MPI runtime.
+
+The final direction is YOLO-only. Repository inspection found an implemented frame/tile YOLO-MPI pipeline with static and dynamic schedulers. It did not find an implemented VGG16, convolution, stencil, or halo-exchange method, so those topics are excluded from the report method and evaluation.
+
+The main objectives are:
+\begin{itemize}
+    \item define video people counting as a parallel inference workload;
+    \item decompose frames and tiles into independent MPI tasks;
+    \item compare static block-cyclic mapping with dynamic master-worker scheduling;
+    \item describe the actual blocking communication behavior and \code{MPI\_Iprobe} polling;
+    \item prepare a results section that can be filled only from real CSV outputs.
+\end{itemize}

@@ -1,0 +1,116 @@
+\chapter{Results and Discussion}
+
+No completed experiment CSV files were present in the inspected repository snapshot. This chapter is a results template for the final measured run package. It must be filled only from real CSV outputs; no runtime, speedup, correctness, hardware, or communication values are inferred.
+
+\section{Correctness Verification}
+Correctness is evaluated by running the implementation with \code{--verify 1}. The expected evidence is \code{summary.csv}, \code{frame\_counts.csv}, \code{bboxes.csv}, and \code{rank\_metrics.csv} for both static and dynamic scheduling.
+
+\begin{table}[H]
+\centering
+\caption{Correctness verification table to be filled from measured CSV}
+\label{tab:correctness}
+\begin{tabularx}{\textwidth}{L{2.2cm} C{1.4cm} C{1.5cm} C{1.6cm} C{2.1cm} X}
+\toprule
+Schedule & Frames & Grid & Processes & Correctness pass & Evidence \\
+\midrule
+Static & Pending CSV & Pending CSV & Pending CSV & Pending CSV & static summary \\
+Dynamic & Pending CSV & Pending CSV & Pending CSV & Pending CSV & dynamic summary \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Input Size Selection}
+The input-size sweep chooses \(N\) so that wall-clock runtime is approximately 120--180 seconds on the selected cluster configuration.
+
+\begin{table}[H]
+\centering
+\caption{Input size selection table to be filled from \code{find\_N.csv}}
+\label{tab:input-size}
+\begin{tabularx}{\textwidth}{C{1.3cm} C{1.4cm} C{1.5cm} C{2.5cm} C{2.7cm} X}
+\toprule
+\(N\) & Grid & \(P\) & Runtime with comm. & Runtime without comm. & Selection note \\
+\midrule
+Pending CSV & Pending & Pending & Pending CSV & Pending CSV & Pending CSV \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Granularity and Load Balance}
+For each selected granularity case, the report will compute:
+\begin{equation}
+    G = \frac{N \times R \times C}{P}, \qquad
+    imbalance = \frac{T_{max} - T_{min}}{T_{max}}.
+\end{equation}
+
+\begin{table}[H]
+\centering
+\caption{Per-rank granularity and load-balance table to be filled from \code{rank\_metrics.csv}}
+\label{tab:granularity}
+\begin{tabularx}{\textwidth}{C{1.0cm} C{1.6cm} C{1.8cm} C{1.9cm} C{1.8cm} C{1.7cm} X}
+\toprule
+Rank & Tasks & Compute ms & YOLO ms & Comm. ms & Idle ms & Host \\
+\midrule
+Pending & Pending CSV & Pending CSV & Pending CSV & Pending CSV & Pending CSV & Pending CSV \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Static vs Dynamic Scheduling}
+Static and dynamic scheduling must be compared using the same \(N\), \(P\), tile grid, detector, model, and source video.
+
+\begin{table}[H]
+\centering
+\caption{Static versus dynamic scheduling table to be filled from \code{scheduler\_comparison.csv}}
+\label{tab:scheduler}
+\begin{tabularx}{\textwidth}{L{1.8cm} C{1.2cm} C{1.4cm} C{2.3cm} C{2.3cm} C{1.8cm} X}
+\toprule
+Schedule & \(P\) & Grid & Runtime with comm. & Runtime without comm. & Imbalance & Note \\
+\midrule
+Static & Pending & Pending & Pending CSV & Pending CSV & Pending CSV & Pending CSV \\
+Dynamic & Pending & Pending & Pending CSV & Pending CSV & Pending CSV & Pending CSV \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Speedup and Efficiency}
+Speedup and efficiency are computed from the measured runtime:
+\begin{equation}
+    S_p = \frac{T_1}{T_p}, \qquad E_p = \frac{S_p}{p}.
+\end{equation}
+The final speedup experiment should use input size \(2N\). If \(P=24\) exceeds the intended physical-core configuration, it must be labeled as oversubscription.
+
+\begin{table}[H]
+\centering
+\caption{Speedup table to be filled from \code{speedup.csv}}
+\label{tab:speedup}
+\begin{tabularx}{\textwidth}{C{1.0cm} C{2.1cm} C{2.2cm} C{1.9cm} C{1.9cm} X}
+\toprule
+\(P\) & Runtime with comm. & Runtime without comm. & \(S_p\) & \(E_p\) & Note \\
+\midrule
+Pending & Pending CSV & Pending CSV & Pending CSV & Pending CSV & Pending CSV \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Communication Overhead}
+Communication overhead is:
+\begin{equation}
+    \frac{T_{comm}}{T_{wall}}.
+\end{equation}
+The numerator must come from \code{comm\_ms\_total} or aggregated \code{rank\_metrics.csv}; the denominator must come from \code{total\_ms\_with\_comm}.
+
+\begin{table}[H]
+\centering
+\caption{Communication overhead table to be filled from measured summaries}
+\label{tab:communication}
+\begin{tabularx}{\textwidth}{L{2.2cm} C{1.1cm} C{2.2cm} C{2.0cm} C{2.0cm} X}
+\toprule
+Run & \(P\) & \(T_{wall}\) & \(T_{comm}\) & Ratio & Evidence \\
+\midrule
+Pending CSV & Pending & Pending CSV & Pending CSV & Pending CSV & communication summary \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Bottleneck Analysis}
+The final bottleneck analysis should be evidence-driven. Possible causes include task imbalance, heterogeneous host speeds, repeated tile-border work, communication overhead from dynamic scheduling, and Apple MPS contention when multiple ranks share accelerator resources. This draft does not rank those causes because the required CSV evidence has not yet been collected.

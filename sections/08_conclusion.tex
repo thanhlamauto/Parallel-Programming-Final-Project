@@ -1,0 +1,7 @@
+\chapter{Conclusion}
+
+This report presents the implemented YOLO-MPI people-counting system as a parallel inference runtime. The method decomposes a video into frame-tile tasks, supports static block-cyclic scheduling and dynamic master-worker scheduling, uses rank-local YOLO workers, and aggregates final detections on rank 0 with duplicate removal and NMS.
+
+The implementation evidence supports a YOLO-only report. A second VGG16, convolution, or halo-exchange method is not implemented and is therefore not included. The communication design is also reported conservatively: payload transfer uses blocking MPI calls, while \code{MPI\_Iprobe} is used only for polling in the dynamic scheduler.
+
+The remaining work before final submission is experimental rather than methodological. The final PDF should replace all pending result placeholders with measured CSV evidence for correctness, input size selection, granularity, scheduling, speedup, and communication overhead.

@@ -1,0 +1,8 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This report presents an MPI-based system for parallel YOLO11n people-counting inference on video. The work is evaluated as a parallel and distributed programming project: YOLO11n is the local inference workload, while the implemented contribution is the C++17/OpenMPI runtime that decomposes video frames into tasks, schedules those tasks across ranks, gathers detections, and writes measurement CSV files.
+
+The implemented method uses temporal-spatial data decomposition. A video is split into frames, each frame is split into tiles, and each frame-tile pair becomes one MPI task. The code supports static block-cyclic scheduling and dynamic master-worker scheduling. Communication is primarily blocking: task and result payloads use \code{MPI\_Send}/\code{MPI\_Recv}, and static aggregation uses blocking collectives. \code{MPI\_Iprobe} is used only as a polling mechanism in the dynamic scheduler, not as non-blocking payload transfer. No VGG16, convolution-layer parallelization, or halo-exchange method is implemented or reported.
+
+At the time of this draft, no real experiment CSV files were present in the inspected repository snapshot. Therefore, the Results chapter contains clearly marked placeholders for measured CSV evidence and does not fabricate correctness, runtime, speedup, hardware, or communication numbers.

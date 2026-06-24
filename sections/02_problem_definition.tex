@@ -1,0 +1,37 @@
+\chapter{Problem Description}
+
+\section{Video People Counting as a Parallel Inference Workload}
+Let the input video be a finite sequence of frames:
+\begin{equation}
+    V = \{F_1, F_2, \ldots, F_N\}.
+\end{equation}
+For each frame, the goal is to count detected people after post-processing:
+\begin{equation}
+    count(F_i) = |\{b \mid b \text{ is a final person bounding box in } F_i\}|.
+\end{equation}
+This workload is parallel because different frame regions can be processed independently before final aggregation.
+
+\section{YOLO11n Inference Pipeline}
+The detector backend is YOLO11n through a Python worker process \cite{ultralytics2026}. The MPI program does not implement neural-network layers; it launches long-lived local detector helpers and sends them frame-tile inference requests. The C++ side owns the parallel runtime: MPI initialization, task generation, scheduling, timing, communication, post-processing, and CSV output.
+
+\section{Frame, Tile, Bounding Box, and Count Definition}
+For a tile grid with \(R\) rows and \(C\) columns, frame \(F_i\) is decomposed into:
+\begin{equation}
+    F_i \rightarrow \{T_{i,1}, T_{i,2}, \ldots, T_{i,R \times C}\}.
+\end{equation}
+Each tile can be expanded with an overlap margin so that people near tile borders are still visible to the detector. A task is one frame-tile inference:
+\begin{equation}
+    task(i,j) = T_{i,j}.
+\end{equation}
+The total task count for \(N\) frames is:
+\begin{equation}
+    |\mathcal{T}| = N \times R \times C.
+\end{equation}
+A detection is represented as a bounding box plus confidence and class label. Rank 0 converts tile-local detections to frame coordinates, removes duplicates, and writes the final frame count.
+
+\section{Serial Baseline and Correctness Target}
+The serial baseline processes the same frame-tile task list without MPI distribution and then applies the same post-processing pipeline. Correctness is therefore serial-versus-parallel consistency, not human-label accuracy. For frame counts:
+\begin{equation}
+    \Delta_i = |count_{parallel}(F_i) - count_{serial}(F_i)|.
+\end{equation}
+The final correctness table will be filled from measured CSV output generated with \code{--verify 1}. No correctness value is reported in this draft without that evidence.
