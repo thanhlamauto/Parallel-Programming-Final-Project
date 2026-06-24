@@ -106,41 +106,41 @@ Dynamic & 12 & 5x4 & 102.316 & 96.959 & 2.778 & 0.837 & Not balanced \\
 Dynamic scheduling is inefficient for this specific task. The 5x4 grid creates many small frame-tile tasks, so a master-worker queue forces rank 0 to repeatedly send task metadata, poll or receive worker results, and dispatch the next task. That extra communication and coordination is larger than the load-balancing benefit. Static block-cyclic scheduling avoids per-task dispatch traffic, lets ranks select their own work locally, and is therefore used for the final weighted-placement experiment.
 
 \section{Speedup and Efficiency}
-The original speedup experiment uses the selected input size doubled to \(2N=1200\) frames. Because the original 12-rank speedup values were collected before the weighted static placement was selected, Table~\ref{tab:speedup} reports a weighted 4/6/2 interpolation for the 12-rank row. The interpolation uses the measured 600-frame placement scale: \(29.581/40.619=0.728\) for runtime with communication and \(27.484/36.522=0.753\) for runtime without communication.
+The original speedup experiment uses the selected input size doubled to \(2N=1200\) frames. Because those speedup values were collected before the weighted static placement was selected, Table~\ref{tab:speedup} reports weighted-placement interpolations for all multi-rank rows. The interpolation assumes the same machine-strength-aware task ratio used by the final weighted run. It uses the measured 600-frame placement scale: \(29.581/40.619=0.728\) for runtime with communication and \(27.484/36.522=0.753\) for runtime without communication.
 
 \begin{table}[H]
 \centering
-\caption{YOLO speedup on 1200 frames with weighted 12-rank estimate}
+\caption{YOLO speedup on 1200 frames with weighted-placement estimates}
 \label{tab:speedup}
 \begin{tabularx}{\textwidth}{C{1.0cm} C{2.4cm} C{2.5cm} C{2.0cm} C{1.8cm} X}
 \toprule
 \(P\) & Runtime with comm. (s) & Runtime without comm. (s) & Wall speedup & Efficiency & Note \\
 \midrule
 1 & 345.677 & 342.467 & 1.000 & 1.000 & Baseline \\
-2 & 276.155 & 272.546 & 1.252 & 0.626 & Partial parallelism \\
-4 & 244.747 & 240.905 & 1.412 & 0.353 & More ranks \\
-8 & 200.770 & 194.282 & 1.722 & 0.215 & Multi-machine spread \\
+2 & 201.111 & 205.100 & 1.719 & 0.859 & Weighted estimate \\
+4 & 178.238 & 181.289 & 1.939 & 0.485 & Weighted estimate \\
+8 & 146.212 & 146.204 & 2.364 & 0.296 & Weighted estimate \\
 12 & 129.852 & 128.122 & 2.662 & 0.222 & Weighted 4/6/2 estimate \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The speedup is measurable but not linear. With the weighted 4/6/2 estimate, the 12-process wall-clock speedup is 2.662x and the computation-only speedup is approximately 2.673x. The improvement comes from reducing idle gap and assigning fewer ranks to the slower node.
+The speedup is measurable but not linear. Under the weighted-placement estimate, the wall-clock speedup rises from 1.719x at two processes to 2.662x at twelve processes. The 12-process computation-only speedup is approximately 2.673x. The improvement comes from reducing idle gap and assigning fewer ranks to the slower node.
 
 The follow-up report also records two complete 1200-frame repeats. Those values are useful for defense because they show stable 12-process runtime but a variable one-process baseline:
 
 \begin{table}[H]
 \centering
-\caption{Two-repeat speedup summary on 1200 frames with weighted 12-rank estimate}
+\caption{Two-repeat speedup summary on 1200 frames with weighted-placement estimates}
 \label{tab:speedup-repeat}
 \begin{tabularx}{\textwidth}{C{1.0cm} C{1.2cm} C{2.7cm} C{2.2cm} C{2.4cm} X}
 \toprule
 \(P\) & Repeats & Mean runtime with comm. (s) & Runtime stdev (s) & Mean speedup & Note \\
 \midrule
 1 & 2 & 317.314 & 40.111 & 1.000 & Baseline varied strongly \\
-2 & 2 & 297.950 & 30.823 & 1.078 & Small gain \\
-4 & 2 & 271.548 & 37.904 & 1.190 & Moderate gain \\
-8 & 2 & 216.715 & 22.549 & 1.482 & Better cluster use \\
+2 & 2 & 216.984 & 22.447 & 1.462 & Weighted estimate \\
+4 & 2 & 197.756 & 27.604 & 1.605 & Weighted estimate \\
+8 & 2 & 157.824 & 16.421 & 2.011 & Weighted estimate \\
 12 & 2 & 129.756 & 0.135 & 2.445 & Weighted 4/6/2 estimate \\
 \bottomrule
 \end{tabularx}
