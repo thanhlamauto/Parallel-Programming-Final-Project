@@ -1,7 +1,7 @@
 \chapter{Experimental Setup}
 
 \section{Repository Evidence}
-The draft is based on the local repository \code{yolo-mpi-people-count}. The strongest source for measured YOLO values is \code{reports/final\_report\_hust\_style.md}, with additional full-cluster discussion in \code{reports/additional\_experiments\_20260623.md}. The updated artifact branch also provides compact CSV files under \code{reports/artifacts/}; those CSV artifacts have been copied into this report repository under \code{artifacts/}.
+The draft is based on the local repository \code{yolo-mpi-people-count}. The strongest source for measured YOLO values is \code{reports/final\_report\_hust\_style.md}, with additional full-cluster discussion in \code{reports/additional\_experiments\_20260623.md}. The artifact branch also provides compact CSV files under \code{reports/artifacts/}; the Method 1 CSV artifacts have been copied into this report repository under \code{artifacts/}.
 
 \section{Physical Cluster}
 The project uses three physical MacBook machines connected through a local network. The benchmark mode uses CPU execution to match the course emphasis on MPI processes and processor assignment. GPU/MPS execution is kept for demonstration and live-camera use rather than formal CPU speedup measurement.
@@ -74,9 +74,27 @@ Granularity & YOLO & Filled from report values & Study task count, communication
 Scheduling & YOLO & Filled from report values & Compare static and dynamic scheduling. \\
 Speedup & YOLO & Filled from report values & Measure \(S_p\) and \(E_p\). \\
 Weighted placement & YOLO & Filled from report values & Address heterogeneous physical cluster. \\
-Correctness & VGG11 & Filled from artifact CSV & Verify distributed convolution stack. \\
-Input size and speedup & VGG11 & Filled from artifact CSV & Evaluate data-parallel CNN convolution. \\
-Communication breakdown & VGG11 & Filled for blocking halo & Quantify halo/gather overhead; non-blocking CSV is not included in the current artifact set. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Recommended Additional Method 1 Experiments}
+Since the final scope focuses on the YOLO MPI method, the report can be strengthened by adding more experiments around the same pipeline rather than introducing a second algorithm. Table~\ref{tab:recommended-experiments} lists useful follow-up measurements.
+
+\begin{table}[H]
+\centering
+\caption{Recommended follow-up experiments for the YOLO MPI method}
+\label{tab:recommended-experiments}
+\begin{tabularx}{\textwidth}{L{3.2cm} L{3.4cm} X}
+\toprule
+Experiment & Suggested variables & Purpose \\
+\midrule
+Tile-grid sweep on \(N=600\) & 1x1, 2x2, 4x3, 5x4, 6x4 & Find the best accuracy/runtime trade-off under the official workload size. \\
+Weighted placement sweep & 5/5/2, 6/4/2, 4/6/2, 3/7/2 & Show how heterogeneous rank assignment changes idle gap and runtime. \\
+Chunk-size sensitivity & chunk size 1, 2, 4, 8, 16 & Check whether block-cyclic granularity changes load balance without changing tile grid. \\
+Communication breakdown & gather time, serialization time, merge/NMS time & Explain where overhead comes from when task count increases. \\
+Repeated-run stability & at least 3 repeats for the main rows & Report mean and standard deviation for defense-quality reliability. \\
+Accuracy under tiling & baseline, 2x2, 4x3, 5x4, 6x4 & Quantify whether finer tiles harm detector output through border effects. \\
 \bottomrule
 \end{tabularx}
 \end{table}

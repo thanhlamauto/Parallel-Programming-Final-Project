@@ -1,10 +1,10 @@
 \chapter{Problem Description}
 
 \section{CNN-Based Computer Vision Inference}
-The shared problem is to execute CNN-based inference faster by distributing work across MPI processes. Let the input be either a video sequence or a CNN feature tensor. In both cases, the program applies a fixed pretrained model; it does not train or update model weights. The parallel system must preserve the output of the serial inference pipeline while reducing runtime or revealing the cost of communication.
+The problem is to execute CNN-based video inference faster by distributing repeated detector work across MPI processes. The program applies a fixed pretrained model; it does not train or update model weights. The parallel system must preserve the output of the serial inference pipeline while reducing runtime or revealing the cost of communication.
 
-\section{Method 1: YOLO Video People Counting}
-For the YOLO method, the input video is a finite sequence of frames:
+\section{YOLO Video People Counting}
+The input video is a finite sequence of frames:
 \begin{equation}
     V = \{F_1, F_2, \ldots, F_N\}.
 \end{equation}
@@ -25,26 +25,22 @@ A task is one frame-tile inference:
 \end{equation}
 Rank 0 converts tile-local detections back to full-frame coordinates, applies tile ownership filtering, removes duplicates, and writes final frame counts.
 
-\section{Method 2: VGG11 Convolution Benchmark}
-For the VGG11 method, the input is a CNN feature map. Each convolution layer receives a tensor and computes an output tensor using a fixed \(3 \times 3\) kernel. The repository uses VGG11 without BatchNorm, with channel profiles such as \code{tiny}, \code{small}, and \code{full}. The purpose is to demonstrate data parallelism inside CNN convolution layers.
-
-For each convolution layer, \(P\) MPI ranks are arranged into a \(P_r \times P_c\) process grid. The spatial dimensions \(H \times W\) of the feature map are split into 2D blocks. Each rank computes the convolution output for its local core block. Since a \(3 \times 3\) convolution needs neighboring pixels, ranks must exchange one-pixel halo rows, columns, and corners before local computation.
-
-Method 1 and Method 2 therefore exercise different parallel-programming patterns:
+\section{Parallel-Programming Focus}
+The final report studies one implemented MPI pipeline in depth instead of splitting attention across two methods. The YOLO pipeline exercises the following parallel-programming concepts:
 \begin{table}[H]
 \centering
-\caption{Comparison of the two project methods}
-\label{tab:method-comparison}
-\begin{tabularx}{\textwidth}{L{3.2cm} X X}
+\caption{Parallel-programming concepts in the YOLO pipeline}
+\label{tab:yolo-concepts}
+\begin{tabularx}{\textwidth}{L{3.2cm} X}
 \toprule
-Aspect & Method 1: YOLO video inference & Method 2: VGG11 convolution \\
+Concept & YOLO MPI implementation \\
 \midrule
-Parallelism level & Task parallelism & Data parallelism \\
-Decomposition & Temporal-spatial frame/tile tasks & 2D feature-map blocks \\
-Mapping & 1D flattened task mapping & 2D block/process-grid mapping \\
-Communication & Static gather and centralized result aggregation & Neighbor halo exchange \\
-Topology & Independent rank work followed by rank-0 aggregation & 2D Cartesian/mesh-like topology \\
-Correctness target & Serial count equals MPI count & Serial convolution/VGG stack equals distributed output \\
+Parallelism level & Task parallelism across repeated YOLO inference calls \\
+Decomposition & Hybrid temporal-spatial decomposition into frame-tile tasks \\
+Mapping & 1D flattened task list with static block-cyclic ownership \\
+Communication & Rank-local inference followed by centralized detection and metric gathering \\
+Load balancing & Tile granularity, static versus dynamic scheduling, and weighted process placement \\
+Correctness target & MPI frame counts match serial frame counts after the same post-processing pipeline \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -54,4 +50,4 @@ The serial YOLO baseline processes the same frame-tile task list without MPI dis
 \begin{equation}
     \Delta_i = |count_{parallel}(F_i) - count_{serial}(F_i)|.
 \end{equation}
-The VGG11 correctness target is numerical agreement between the serial convolution stack and the distributed convolution stack, typically reported as maximum absolute error or pass/fail under a chosen tolerance.
+The correctness experiment reports mismatched frames, maximum count error, and mean count error. Detector accuracy against MOT17 ground truth is evaluated separately because model error and parallelization error are different questions.

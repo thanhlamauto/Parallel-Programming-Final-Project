@@ -6,6 +6,4 @@ The measured YOLO results are strong enough for the main experimental narrative.
 
 The detector accuracy result should be interpreted separately from parallel correctness. YOLO undercounts crowded MOT17 frames, with MAE 7.983 on the recorded 300-frame accuracy experiment. This is a model limitation, not evidence that MPI changed the pipeline output.
 
-The VGG11 method provides a second, conceptually different parallelization approach: feature-map data parallelism with 2D block mapping and halo exchange. The newly published artifacts show that the distributed VGG11 path matches the serial classifier output with zero logit error. On the \(224 \times 224\) input, speedup improves up to 3.569x at four ranks, then degrades at eight and twelve ranks because communication, gather time, and inter-machine halo edges dominate the computation.
-
-Overall, the project covers the core course concepts: decomposition, mapping, communication topology, scheduling, load balancing, correctness verification, input-size selection, and speedup measurement. The remaining final-submission work is mainly presentation polish and attaching or referencing the artifact CSV files, not inventing additional result values.
+Overall, the project covers the core course concepts through one coherent method: decomposition, mapping, communication topology, scheduling, load balancing, correctness verification, input-size selection, and speedup measurement. The best next step is to make Method 1 deeper by adding more placement, granularity, communication-breakdown, and repeated-run evidence.

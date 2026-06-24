@@ -53,31 +53,16 @@ After local inference, rank 0 gathers detections and rank metrics from all ranks
 \end{algorithmic}
 \end{algorithm}
 
-\section{Method 2: Data Parallel VGG11 Convolution}
-The VGG11 method targets a finer-grained CNN operation. It parallelizes the spatial dimensions of convolution feature maps rather than independent video tasks. This method is useful because it demonstrates a different communication pattern: neighbor exchange rather than master-worker collection.
+\section{Weighted Process Placement}
+The physical cluster is heterogeneous: the three machines do not have identical CPU throughput. Equal rank placement is simple, but it can leave faster machines waiting for slower ones. Weighted process placement keeps the same static task-mapping algorithm while changing the number of MPI ranks launched on each host. Stronger machines receive more ranks and therefore more positions in the block-cyclic task stream; the slower machine receives fewer ranks.
 
-\subsection{2D Feature-Map Decomposition}
-For a feature map of height \(H\) and width \(W\), ranks are arranged into a \(P_r \times P_c\) grid. Each rank owns a rectangular core block. The 2D mapping is row-major, for example a 3x4 grid with 12 ranks.
+The report evaluates uniform 4/4/4 placement and weighted placements such as 3/6/3 and 4/6/2. This isolates process placement from the scheduling algorithm: if runtime and idle gap improve, the reason is the host-to-rank assignment rather than a different task dispatch policy.
 
-\subsection{Halo Exchange}
-A \(3 \times 3\) convolution requires one cell of neighboring context. Before computing a local block, each rank exchanges boundary rows, columns, and corners with its neighboring ranks. Blocking communication can implement this with ordered send/receive phases. Non-blocking communication can post receives and sends first, then wait for completion, allowing possible overlap and reducing deadlock risk.
-
-\subsection{VGG11 Algorithm Sketch}
-\begin{algorithm}[H]
-\caption{Distributed VGG11 convolution layer}
-\begin{algorithmic}[1]
-\STATE Arrange \(P\) ranks into a \(P_r \times P_c\) process grid.
-\STATE Rank 0 splits the input feature map into 2D core blocks.
-\STATE Scatter core blocks to ranks.
-\STATE Exchange one-pixel halo rows, columns, and corners with neighboring ranks.
-\STATE Each rank computes convolution on its local core output.
-\STATE Gather local output blocks to rank 0.
-\STATE Rank 0 applies ReLU and MaxPool before the next layer.
-\end{algorithmic}
-\end{algorithm}
+\section{Metric Collection}
+Each run records both output correctness and timing behavior. The most important timing quantities are wall-clock runtime, runtime without communication, per-rank computation time, communication time, and the idle-gap indicator. These values are needed because speedup alone can hide the reason for poor performance. For this workload, a run can have many tasks and still be slow if rank 0 spends too much time collecting detections or if a slower node receives too much work.
 
 \section{Load Balancing and Metrics}
-Both methods record computation, communication, and idle time. The report uses:
+The report uses:
 \begin{equation}
     T_r = T_{compute,r} + T_{comm,r} + T_{idle,r},
 \end{equation}
