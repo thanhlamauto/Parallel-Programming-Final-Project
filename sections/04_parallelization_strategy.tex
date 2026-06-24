@@ -19,36 +19,44 @@ All frame-tile tasks are flattened into a one-dimensional list. For task index \
     owner(task_i) = \left\lfloor \frac{i}{k} \right\rfloor \bmod P.
 \end{equation}
 Static scheduling has low dispatch overhead because ranks can determine their own tasks locally. The measured repository results show that this advantage matters for the 600-frame 5x4 tiled YOLO workload.
+\section{Parallel-Programming Focus}
 
-\subsection{Communication and Merging}
-After local inference, rank 0 gathers detections and rank metrics from all ranks. It then remaps tile-local boxes into frame coordinates, applies tile-owner filtering, runs global non-maximum suppression, and computes per-frame counts. This centralized merge is necessary because people near tile boundaries may be detected by multiple tiles.
+\begin{table}[H]
+\centering
+\caption{Parallel-programming concepts in the YOLO MPI pipeline}
+\label{tab:yolo-concepts}
+\begin{tabularx}{\textwidth}{L{3.6cm} X}
+\toprule
+Concept & YOLO MPI implementation \\
+\midrule
 
-\subsection{YOLO Algorithm Sketch}
-\begin{algorithm}[H]
-\caption{Static MPI YOLO people-counting pipeline}
-\begin{algorithmic}[1]
-\STATE Build task list \(\mathcal{T}\) from \(N\) frames and an \(R \times C\) tile grid.
-\FOR{each MPI rank \(r\) in parallel}
-    \STATE Select tasks whose static owner is \(r\).
-    \STATE Run local YOLO inference for selected tasks.
-    \STATE Store detections and timing metrics.
-\ENDFOR
-\STATE Gather serialized detections and rank metrics to rank 0.
-\STATE Rank 0 remaps boxes, removes duplicates, computes frame counts, and writes CSV outputs.
-\end{algorithmic}
-\end{algorithm}
+Parallelism level 
+& Task-level parallelism: each task runs YOLO on one frame tile. \\
 
-\section{Weighted Process Placement}
-The physical cluster is heterogeneous: the three machines do not have identical CPU throughput. Equal rank placement is simple, but it can leave faster machines waiting for slower ones. Weighted process placement keeps the same static task-mapping algorithm while changing the number of MPI ranks launched on each host. Stronger machines receive more ranks and therefore more positions in the block-cyclic task stream; the slower machine receives fewer ranks.
+Decomposition 
+& Hybrid temporal-spatial decomposition: video frames are divided into smaller image tiles. \\
 
-The report evaluates uniform 4/4/4 placement and weighted placements such as 3/6/3 and 4/6/2. This isolates process placement from the scheduling algorithm: if runtime and idle gap improve, the reason is the host-to-rank assignment rather than a different task dispatch policy.
+Granularity
+& Tile-level granularity: one task corresponds to one tile of one frame. \\
 
-\section{Metric Collection}
-Each run records both output correctness and timing behavior. The most important timing quantities are wall-clock runtime, runtime without communication, per-rank computation time, communication time, and the idle-gap indicator. These values are needed because speedup alone can hide the reason for poor performance. For this workload, a run can have many tasks and still be slow if rank 0 spends too much time collecting detections or if a slower node receives too much work.
+Mapping technique
+& 1D task mapping: all frame-tile tasks are flattened into a list and assigned to MPI ranks using static block-cyclic distribution. \\
 
-\section{Load Balancing and Metrics}
-The report uses:
-\begin{equation}
-    T_r = T_{compute,r} + T_{comm,r} + T_{idle,r},
-\end{equation}
-and the idle-gap indicator reported by the project scripts. The course criterion treats the run as balanced when the idle gap is at most 0.25. The measured YOLO results show that equal process placement does not meet this criterion, while the best weighted static placement does.
+Communication strategy
+& Each rank computes locally, then sends detections and timing results to rank 0 for merging. \\
+
+Communication topology
+& Master-worker topology: rank 0 gathers and post-processes results, while other ranks mainly perform inference. \\
+
+Communication mode
+& Blocking gather communication is used after local inference. \\
+
+Load balancing
+& Load balancing is considered through tile size, block-cyclic task assignment, and weighted process placement. \\
+
+Correctness check
+& The parallel output is correct if its frame-level people counts match the serial YOLO result after the same post-processing. \\
+
+\bottomrule
+\end{tabularx}
+\end{table}
