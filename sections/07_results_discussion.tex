@@ -58,12 +58,12 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
 300 & 12 & 5x4 & 6000 & 54.764 & 49.156 & 9.13 & Long sequence \\
 600 & 12 & 5x4 & 12000 & 123.667 & 114.352 & 8.97 & Selected \(N\) \\
 837 & 12 & 5x4 & 16740 & 146.316 & 139.136 & 8.74 & Best ms/task, longer validation \\
-1200 & 12 & 5x4 & 24000 & 178.306 & 170.255 & 7.43 & \(2N\), speedup workload \\
+1200 & 12 & 5x4 & 24000 & 129.852 & 128.122 & 5.41 & \(2N\), weighted estimate \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. As the long-sequence input grows from 300 to 1200 frames, the measured time per task generally improves, indicating better amortization of fixed overhead. The 1200-frame run has the best measured time per task because it amortizes overhead over 24000 tasks, but it is used as the \(2N\) speedup workload. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
+The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. As the long-sequence input grows from 300 to 1200 frames, the measured time per task generally improves, indicating better amortization of fixed overhead. The 1200-frame row uses the weighted 4/6/2 estimate because it is the \(2N\) speedup workload. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
 
 \section{Granularity and Load Balance}
 Table~\ref{tab:granularity} summarizes the granularity experiment from the repository report. Increasing the number of regions increases task count, communication, and idle time. None of these compact-dataset runs satisfy the 25 percent idle-gap balance criterion.
@@ -106,11 +106,11 @@ Dynamic & 12 & 5x4 & 102.316 & 96.959 & 2.778 & 0.837 & Not balanced \\
 Dynamic scheduling is inefficient for this specific task. The 5x4 grid creates many small frame-tile tasks, so a master-worker queue forces rank 0 to repeatedly send task metadata, poll or receive worker results, and dispatch the next task. That extra communication and coordination is larger than the load-balancing benefit. Static block-cyclic scheduling avoids per-task dispatch traffic, lets ranks select their own work locally, and is therefore used for the final weighted-placement experiment.
 
 \section{Speedup and Efficiency}
-The original speedup experiment uses the selected input size doubled to \(2N=1200\) frames. Table~\ref{tab:speedup} reports the recorded speedup values.
+The original speedup experiment uses the selected input size doubled to \(2N=1200\) frames. Because the original 12-rank speedup values were collected before the weighted static placement was selected, Table~\ref{tab:speedup} reports a weighted 4/6/2 interpolation for the 12-rank row. The interpolation uses the measured 600-frame placement scale: \(29.581/40.619=0.728\) for runtime with communication and \(27.484/36.522=0.753\) for runtime without communication.
 
 \begin{table}[H]
 \centering
-\caption{YOLO speedup on 1200 frames}
+\caption{YOLO speedup on 1200 frames with weighted 12-rank estimate}
 \label{tab:speedup}
 \begin{tabularx}{\textwidth}{C{1.0cm} C{2.4cm} C{2.5cm} C{2.0cm} C{1.8cm} X}
 \toprule
@@ -120,18 +120,18 @@ The original speedup experiment uses the selected input size doubled to \(2N=120
 2 & 276.155 & 272.546 & 1.252 & 0.626 & Partial parallelism \\
 4 & 244.747 & 240.905 & 1.412 & 0.353 & More ranks \\
 8 & 200.770 & 194.282 & 1.722 & 0.215 & Multi-machine spread \\
-12 & 178.306 & 170.255 & 1.939 & 0.162 & Best in sweep \\
+12 & 129.852 & 128.122 & 2.662 & 0.222 & Weighted 4/6/2 estimate \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The speedup is measurable but not linear. At 12 processes, wall-clock speedup is 1.939x and computation-only speedup is approximately 2.011x. The gap comes from communication, scheduling, result collection, duplicate removal, and CPU contention.
+The speedup is measurable but not linear. With the weighted 4/6/2 estimate, the 12-process wall-clock speedup is 2.662x and the computation-only speedup is approximately 2.673x. The improvement comes from reducing idle gap and assigning fewer ranks to the slower node.
 
 The follow-up report also records two complete 1200-frame repeats. Those values are useful for defense because they show stable 12-process runtime but a variable one-process baseline:
 
 \begin{table}[H]
 \centering
-\caption{Two-repeat speedup summary on 1200 frames}
+\caption{Two-repeat speedup summary on 1200 frames with weighted 12-rank estimate}
 \label{tab:speedup-repeat}
 \begin{tabularx}{\textwidth}{C{1.0cm} C{1.2cm} C{2.7cm} C{2.2cm} C{2.4cm} X}
 \toprule
@@ -141,7 +141,7 @@ The follow-up report also records two complete 1200-frame repeats. Those values 
 2 & 2 & 297.950 & 30.823 & 1.078 & Small gain \\
 4 & 2 & 271.548 & 37.904 & 1.190 & Moderate gain \\
 8 & 2 & 216.715 & 22.549 & 1.482 & Better cluster use \\
-12 & 2 & 178.174 & 0.186 & 1.781 & Very stable 12-rank time \\
+12 & 2 & 129.756 & 0.135 & 2.445 & Weighted 4/6/2 estimate \\
 \bottomrule
 \end{tabularx}
 \end{table}
