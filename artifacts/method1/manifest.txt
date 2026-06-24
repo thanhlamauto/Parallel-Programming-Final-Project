@@ -1,8 +1,0 @@
-method=YOLO11n task parallelism
-parallel_level=coarse-grained task parallelism
-decomposition=temporal frame tasks + spatial tile tasks
-mapping=static block-cyclic task mapping
-communication=rank-level MPI gather to rank 0
-primary_dataset=MOT17-mini report subset
-primary_device=CPU for benchmark, MPS for live demo only
-notes=Full raw runtime outputs remain in ignored results/ directories.

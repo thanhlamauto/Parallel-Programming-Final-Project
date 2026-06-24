@@ -1,15 +1,16 @@
 \chapter{Introduction}
 
-Computer vision inference is a useful setting for studying parallel programming because the workload is computationally heavy, data-rich, and naturally decomposable. A CNN-based detector can be applied repeatedly across frames and image regions. These repeated operations expose the main concerns of a parallel system: decomposition, mapping, communication, load balancing, correctness, and speedup.
+Video people counting is a practical computer vision problem with applications in crowd monitoring, traffic analysis, safety management, and camera-based automation. A modern detector such as YOLO can identify people in individual images, but applying it repeatedly to every frame of a video quickly becomes computationally expensive. This makes the problem useful for a parallel-programming study: it is realistic enough to require a full inference pipeline, yet structured enough to expose clear opportunities for decomposition, scheduling, communication analysis, and speedup measurement.
 
-This project focuses on CNN-based inference rather than model training. The main implemented application is video people counting with YOLO. Given an input video, the system predicts people bounding boxes and frame-level counts. The expensive work is detector inference over many frames and image tiles. The parallel contribution is the C++17/OpenMPI runtime around the detector: it creates tasks, schedules them across MPI ranks, launches local detector workers, gathers detections, removes duplicates, and writes experiment artifacts.
+This project focuses on inference rather than model training. The detector itself is a pretrained YOLO model, while the parallel-programming work is the C++17/OpenMPI runtime built around it. The system decomposes a video temporally into frames and spatially into image tiles, then treats each frame-tile pair as an MPI task. Each rank runs YOLO on its assigned tasks through a long-lived local worker process. After inference, rank 0 gathers detections, converts tile-local bounding boxes back to full-frame coordinates, removes duplicate detections near tile boundaries, computes frame-level people counts, and writes the experiment artifacts.
 
-The report separates two types of correctness. Model accuracy means whether YOLO counts match human ground truth from MOT17. Parallel correctness means whether the MPI implementation produces the same result as the serial version of the same pipeline. A detector can undercount in crowded scenes while the parallel implementation remains correct. The measured results from the repository show this distinction clearly: serial and MPI counts match in the correctness test, while detector-versus-ground-truth accuracy remains limited on crowded MOT17 frames.
+The report evaluates the implementation as a distributed-memory parallel program and separates parallel correctness from detector accuracy. Parallel correctness asks whether the MPI implementation preserves the output of the serial version of the same pipeline, while detector accuracy asks whether YOLO's predicted counts match human ground truth from MOT17-derived data. This distinction is important because the detector may undercount people in crowded scenes even when the MPI program is correct. The experiments therefore measure correctness, input-size suitability, scheduling behavior, granularity, speedup, and heterogeneous rank placement.
 
-The main objectives are:
-\begin{itemize}
-    \item define CNN-based computer vision inference as a parallel workload;
-    \item present task parallelism for YOLO video inference;
-    \item report measured YOLO correctness, input-size, scheduling, granularity, speedup, and weighted-placement results from the repository;
-    \item propose additional Method 1 experiments that can make the final report deeper without adding a second algorithmic direction.
-\end{itemize}
+The main contributions and insights of this technical report are:
+\begin{enumerate}
+    \item It formulates YOLO video people counting as a task-parallel MPI workload over frames and image tiles.
+    \item It presents an OpenMPI implementation that combines static block-cyclic task mapping, rank-local YOLO workers, centralized detection merging, duplicate removal, and metric collection.
+    \item It verifies that the MPI pipeline preserves serial output in the correctness experiment, while also showing that detector accuracy against ground truth is a separate limitation.
+    \item It compares scheduling and placement choices, showing that static scheduling and weighted rank placement are more suitable than dynamic dispatch for the measured heterogeneous cluster workload.
+    \item It analyzes speedup and remaining bottlenecks, especially communication overhead, tile granularity, master-side post-processing, and unequal machine capacity.
+\end{enumerate}
