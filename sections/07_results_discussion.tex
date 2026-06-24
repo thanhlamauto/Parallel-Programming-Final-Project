@@ -1,23 +1,5 @@
 \chapter{Results and Discussion}
 
-\section{YOLO Parallel Correctness}
-Table~\ref{tab:correctness} reports the serial-versus-MPI correctness result recorded in the repository report. The MPI run produced the same frame counts as the serial baseline on the tested sequence.
-
-\begin{table}[H]
-\centering
-\caption{YOLO serial-versus-MPI correctness}
-\label{tab:correctness}
-\begin{tabularx}{\textwidth}{L{2.2cm} C{2.1cm} C{2.1cm} C{2.2cm} C{2.0cm} X}
-\toprule
-Result & Frames & Mismatched frames & Max count error & Mean error & Evidence \\
-\midrule
-Passed & 30 & 0 & 0 & 0.000 & repository report \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-This validates the parallel pipeline for the tested configuration. It indicates that task splitting, MPI result collection, coordinate remapping, duplicate removal, and final counting preserve the serial pipeline output.
-
 \section{Detector Accuracy Under Tile Splitting}
 Table~\ref{tab:accuracy} compares detector accuracy against MOT17 ground-truth counts for the normal single-machine YOLO baseline and for different MPI tile-splitting configurations. The purpose of this experiment is to check whether spatial tiling changes the final detection accuracy, not only whether the MPI implementation is faster.
 
@@ -279,6 +261,24 @@ Weighted & 4/6/2 & 29.581 & 27.484 & 0.235 & Balanced \\
 \end{figure}
 
 This result supports the claim that processor assignment matters on a heterogeneous physical cluster. Equal rank placement gives every host the same number of processes, but the machines do not have equal throughput. Weighted placement reduces runtime and satisfies the load-balance criterion.
+
+\section{YOLO Parallel Correctness}
+Table~\ref{tab:correctness} reports the serial-versus-MPI correctness result recorded in the repository report. The MPI run produced the same frame counts as the serial baseline on the tested sequence.
+
+\begin{table}[H]
+\centering
+\caption{YOLO serial-versus-MPI correctness}
+\label{tab:correctness}
+\begin{tabularx}{\textwidth}{L{2.2cm} C{2.1cm} C{2.1cm} C{2.2cm} C{2.0cm} X}
+\toprule
+Result & Frames & Mismatched frames & Max count error & Mean error & Evidence \\
+\midrule
+Passed & 30 & 0 & 0 & 0.000 & repository report \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+This validates the parallel pipeline for the tested configuration. It indicates that task splitting, MPI result collection, coordinate remapping, duplicate removal, and final counting preserve the serial pipeline output.
 
 \section{Summary of Findings}
 The measured YOLO results support the main task-parallel narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that task granularity and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235.
