@@ -1,6 +1,6 @@
 \chapter{Parallelization Methods}
 
-\section{Method 1: Task Parallel YOLO Inference}
+\section{Task Parallel YOLO Inference}
 The YOLO pipeline uses task-level parallelism over independent frame-tile inference tasks. The implementation is centered on \code{src/yolo\_mpi\_cpp.cpp} in the repository. Each MPI rank runs the same C++ program, and rank-local detector work is delegated to a long-lived Python YOLO worker.
 
 \subsection{Temporal-Spatial Decomposition}
