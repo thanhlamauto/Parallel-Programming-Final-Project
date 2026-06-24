@@ -46,7 +46,7 @@ Parallelism level & Task parallelism across repeated YOLO inference calls \\
 Decomposition & Hybrid temporal-spatial decomposition into frame-tile tasks \\
 Mapping & 1D flattened task list with static block-cyclic ownership \\
 Communication & Rank-local inference followed by centralized detection and metric gathering \\
-Load balancing & Tile granularity, static versus dynamic scheduling, and weighted process placement \\
+Load balancing & Tile granularity and weighted process placement \\
 Correctness target & MPI frame counts match serial frame counts after the same post-processing pipeline \\
 \bottomrule
 \end{tabularx}
