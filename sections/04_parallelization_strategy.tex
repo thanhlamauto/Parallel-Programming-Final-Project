@@ -4,12 +4,12 @@
 The YOLO pipeline uses task-level parallelism over independent frame-tile inference tasks. The implementation is centered on \code{src/yolo\_mpi\_cpp.cpp} in the repository. Each MPI rank runs the same C++ program, and rank-local detector work is delegated to a long-lived Python YOLO worker.
 
 \subsection{Temporal-Spatial Decomposition}
-The input video is first decomposed by time into frames and then by space into image tiles. If the video has \(N\) frames and each frame is split into an \(R \times C\) grid, the total number of tasks is \(NRC\). Figure~\ref{fig:yolo-grid-split} shows a concrete example for the 5x4 configuration used in the main experiments. Larger grids create more tasks and can improve scheduling flexibility, but they increase duplicate detections near tile borders and increase post-processing work.
+The input video is first decomposed by time into frames and then by space into image tiles. If the video has \(N\) frames and each frame is split into an \(R \times C\) grid, the total number of tasks is \(NRC\). Figure~\ref{fig:yolo-grid-split} compares the original frame with 2x2 and 5x4 tiling. The 2x2 grid keeps detector accuracy close to the original-frame baseline because it introduces fewer artificial tile borders, so fewer people are cut by tile edges before the final merge stage. Larger grids create more tasks and can improve scheduling flexibility, but they increase duplicate detections near tile borders and increase post-processing work.
 
-\begin{figure}[H]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=\textwidth]{figures/yolo_grid_split_visualization.png}
-\caption{Hybrid temporal-spatial decomposition for YOLO video inference. The public-domain crowd frame is from Wikimedia Commons~\cite{keymeulen2011crowd}; the overlay illustrates how one frame becomes independent 5x4 frame-tile tasks.}
+\includegraphics[width=0.98\textwidth]{figures/yolo_grid_split_visualization.png}
+\caption{Hybrid temporal-spatial decomposition for YOLO video inference. The public-domain crowd frame is from Wikimedia Commons~\cite{keymeulen2011crowd}; the overlays show why coarse 2x2 tiling preserves accuracy better than finer 5x4 tiling while still creating independent frame-tile tasks.}
 \label{fig:yolo-grid-split}
 \end{figure}
 

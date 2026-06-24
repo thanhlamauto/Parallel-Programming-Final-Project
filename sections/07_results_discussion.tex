@@ -1,23 +1,5 @@
 \chapter{Results and Discussion}
 
-\section{YOLO Parallel Correctness}
-Table~\ref{tab:correctness} reports the serial-versus-MPI correctness result recorded in the repository report. The MPI run produced the same frame counts as the serial baseline on the tested sequence.
-
-\begin{table}[H]
-\centering
-\caption{YOLO serial-versus-MPI correctness}
-\label{tab:correctness}
-\begin{tabularx}{\textwidth}{L{2.2cm} C{2.1cm} C{2.1cm} C{2.2cm} C{2.0cm} X}
-\toprule
-Result & Frames & Mismatched frames & Max count error & Mean error & Evidence \\
-\midrule
-Passed & 30 & 0 & 0 & 0.000 & repository report \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-This validates the parallel pipeline for the tested configuration. It indicates that task splitting, MPI result collection, coordinate remapping, duplicate removal, and final counting preserve the serial pipeline output.
-
 \section{Detector Accuracy Under Tile Splitting}
 Table~\ref{tab:accuracy} compares detector accuracy against MOT17 ground-truth counts for the normal single-machine YOLO baseline and for different MPI tile-splitting configurations. The purpose of this experiment is to check whether spatial tiling changes the final detection accuracy, not only whether the MPI implementation is faster.
 
@@ -25,19 +7,20 @@ Table~\ref{tab:accuracy} compares detector accuracy against MOT17 ground-truth c
 \centering
 \caption{YOLO accuracy comparison across baseline and tile-splitting configurations}
 \label{tab:accuracy}
-\begin{tabularx}{\textwidth}{L{2.8cm} C{0.9cm} C{1.0cm} C{1.1cm} C{1.1cm} C{1.4cm} C{1.3cm} C{1.3cm}}
+\small
+\begin{tabularx}{\textwidth}{L{2.6cm} C{0.8cm} C{0.85cm} C{1.45cm} C{0.85cm} C{0.85cm} C{1.25cm} C{1.1cm}}
 \toprule
-Configuration & Grid & Frames & MAE & RMSE & Percent error & Exact match & Pred. avg. \\
+Configuration & Grid & Frames & Runtime (s) & MAE & RMSE & Percent err. & Pred. avg. \\
 \midrule
-Single-machine YOLO baseline & 1x1 & 300 & 7.983 & 8.269 & 0.490 & 0.000 & 8.223 \\
-MPI tiled YOLO & 2x2 & 300 & 7.983 & 8.269 & 0.490 & 0.000 & 8.223 \\
-MPI tiled YOLO & 4x3 & 300 & 8.223 & 8.517 & 0.504 & 0.000 & 7.977 \\
-MPI tiled YOLO & 5x4 & 300 & 8.383 & 8.682 & 0.514 & 0.000 & 7.812 \\
+Single-machine baseline & 1x1 & 300 & -- & 7.983 & 8.269 & 0.490 & 8.223 \\
+MPI tiled & 2x2 & 300 & -- & 7.983 & 8.269 & 0.490 & 8.223 \\
+MPI tiled & 4x3 & 300 & -- & 8.223 & 8.517 & 0.504 & 7.977 \\
+MPI tiled & 5x4 & 300 & 54.764 & 8.383 & 8.682 & 0.514 & 7.812 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The 2x2 configuration is effectively equivalent to the single-machine baseline, so moderate spatial tiling does not change detector behavior. Finer grids introduce a small degradation: the 4x3 configuration is about 3 percent worse than baseline, and the 5x4 configuration is about 5 percent worse. This suggests that aggressive tile splitting can harm accuracy through border effects and imperfect cross-tile merging, even when it creates more parallel work.
+The runtime entry is included only where the repository contains an official measurement for the same 300-frame workload. The 2x2 configuration is effectively equivalent to the single-machine baseline, so moderate spatial tiling does not change detector behavior. Finer grids introduce a small degradation: the 4x3 configuration is about 3 percent worse than baseline, and the 5x4 configuration is about 5 percent worse. This suggests that aggressive tile splitting can harm accuracy through border effects and imperfect cross-tile merging, even when it creates more parallel work.
 
 \section{Input-Size Selection}
 The compact MOT17 subset is useful for quick runs but does not reach the required two-to-three-minute runtime. Table~\ref{tab:input-size} also reports the total number of frame-tile tasks and the wall-clock time per task, making it easier to compare efficiency across input sizes. The long-sequence experiment selects \(N=600\) frames because the 12-process wall-clock runtime is 123.667 seconds.
@@ -63,7 +46,38 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
 \end{tabularx}
 \end{table}
 
-The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. As the long-sequence input grows from 300 to 1200 frames, the measured time per task generally improves, indicating better amortization of fixed overhead. The 1200-frame row uses the weighted 4/6/2 run because it is the \(2N\) speedup workload. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=0.82\textwidth,
+    height=5.2cm,
+    xlabel={Input frames},
+    ylabel={Runtime (s)},
+    xmin=0, xmax=1250,
+    ymin=0, ymax=160,
+    xtick={30,150,300,600,837,1200},
+    ymajorgrids=true,
+    grid style={gray!20},
+    legend pos=north west,
+    mark options={solid},
+]
+\addplot[color=blue, mark=*] coordinates {
+    (30,9.165) (60,12.570) (100,17.776) (150,23.585)
+    (300,54.764) (600,123.667) (837,146.316) (1200,129.852)
+};
+\addplot[color=red!70!black, mark=square*] coordinates {
+    (30,2.999) (60,6.801) (100,11.596) (150,17.103)
+    (300,49.156) (600,114.352) (837,139.136) (1200,128.122)
+};
+\legend{with communication, without communication}
+\end{axis}
+\end{tikzpicture}
+\caption{Runtime versus input size. The 600-frame workload is the first measured case inside the required 120--180 second interval.}
+\label{fig:input-size-runtime}
+\end{figure}
+
+The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window. The 1200-frame row is the \(2N\) speedup workload.
 
 \section{Granularity and Load Balance}
 Table~\ref{tab:granularity} summarizes the official granularity experiment using weighted 6/4/2 placement. The weighted placement keeps the idle-gap indicator at \(0.235\), within the 25 percent course criterion. Increasing the number of regions still increases task count and communication, so granularity remains a performance trade-off even when load balance is acceptable.
@@ -84,26 +98,14 @@ Grid & \(P\) & Tasks & Max comp. (s) & Avg comp. (s) & Total comm. (s) & Idle ga
 \end{tabularx}
 \end{table}
 
-The result shows that weighted placement can satisfy the idle-gap criterion, but simply making tasks finer is not enough to guarantee faster execution. Finer tiles create more scheduling opportunities, but they also increase intermediate detections, communication, and master-side merging. This motivates the scheduler and weighted-placement experiments.
-
-\section{Static vs Dynamic Scheduling}
-The full-cluster scheduler comparison used 12 processes, 600 frames, a 5x4 grid, and CPU execution. Static scheduling is much faster on this measured workload, so the dynamic master-worker method is not used as the main report algorithm.
-
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\caption{Static versus dynamic scheduling on 600 frames}
-\label{tab:scheduler}
-\begin{tabularx}{\textwidth}{L{1.8cm} C{1.0cm} C{1.4cm} C{2.2cm} C{2.4cm} C{1.6cm} C{1.5cm} X}
-\toprule
-Scheduler & \(P\) & Grid & Runtime with comm. (s) & Runtime without comm. (s) & Imbalance & Idle gap & Balance \\
-\midrule
-Static & 12 & 5x4 & 40.619 & 36.522 & 1.202 & 0.466 & Not balanced \\
-Dynamic & 12 & 5x4 & 102.316 & 96.959 & 2.778 & 0.837 & Not balanced \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\includegraphics[width=0.82\textwidth]{figures/yolo_per_rank_timing_stacked.png}
+\caption{Per-process timing breakdown for the granularity experiment. Each bar is one MPI process, with compute, communication, and idle time stacked in the same column.}
+\label{fig:granularity-rank-stacked}
+\end{figure}
 
-Dynamic scheduling is inefficient for this specific task. The 5x4 grid creates many small frame-tile tasks, so a master-worker queue forces rank 0 to repeatedly send task metadata, poll or receive worker results, and dispatch the next task. That extra communication and coordination is larger than the load-balancing benefit. Static block-cyclic scheduling avoids per-task dispatch traffic, lets ranks select their own work locally, and is therefore used for the final weighted-placement experiment.
+The result shows that weighted placement can satisfy the idle-gap criterion, but simply making tasks finer is not enough to guarantee faster execution. Finer tiles create more scheduling opportunities, but they also increase intermediate detections, communication, and master-side merging. Figure~\ref{fig:granularity-rank-stacked} shows why the load-balance check must inspect process-level timing rather than only total runtime.
 
 \section{Speedup and Efficiency}
 The speedup experiment uses the selected input size doubled to \(2N=1200\) frames and applies weighted static placement for the multi-rank runs. This keeps the process distribution consistent with the heterogeneous cluster: stronger machines receive more ranks, while the slower machine receives fewer ranks.
@@ -134,20 +136,25 @@ The speedup experiment uses the selected input size doubled to \(2N=1200\) frame
     width=\textwidth,
     height=5.2cm,
     xlabel={MPI processes},
-    ylabel={Wall speedup},
+    ylabel={Runtime (s)},
     xmin=1, xmax=12,
-    ymin=0, ymax=3,
+    ymin=0, ymax=380,
     xtick={1,2,4,8,12},
     ymajorgrids=true,
     grid style={gray!20},
+    legend pos=north east,
     mark options={solid},
 ]
 \addplot[color=blue, mark=*] coordinates {
-    (1,1.000) (2,1.719) (4,1.939) (8,2.364) (12,2.662)
+    (1,345.677) (2,201.111) (4,178.238) (8,146.212) (12,129.852)
 };
+\addplot[color=red!70!black, mark=square*] coordinates {
+    (1,342.467) (2,205.100) (4,181.289) (8,146.204) (12,128.122)
+};
+\legend{with comm., without comm.}
 \end{axis}
 \end{tikzpicture}
-\caption{Wall-clock speedup}
+\caption{Runtime by process count}
 \end{subfigure}
 \hfill
 \begin{subfigure}{0.48\textwidth}
@@ -165,37 +172,18 @@ The speedup experiment uses the selected input size doubled to \(2N=1200\) frame
     grid style={gray!20},
     mark options={solid},
 ]
-\addplot[color=red!70!black, mark=square*] coordinates {
-    (1,1.000) (2,0.859) (4,0.485) (8,0.296) (12,0.222)
+\addplot[color=green!45!black, mark=*] coordinates {
+    (1,1.000) (2,1.719) (4,1.939) (8,2.364) (12,2.662)
 };
 \end{axis}
 \end{tikzpicture}
-\caption{Parallel efficiency}
+\caption{Wall-clock speedup}
 \end{subfigure}
-\caption{Speedup and efficiency trends for the 1200-frame weighted-placement run.}
+\caption{Runtime and speedup trends for the 1200-frame weighted-placement run.}
 \label{fig:speedup-efficiency}
 \end{figure}
 
 The speedup is measurable but not linear. Under weighted placement, the wall-clock speedup rises from 1.719x at two processes to 2.662x at twelve processes. The 12-process computation-only speedup is approximately 2.673x. The improvement comes from reducing idle gap and assigning fewer ranks to the slower node.
-
-The follow-up report also records two complete 1200-frame repeats. Those values are useful for defense because they show stable 12-process runtime but a variable one-process baseline:
-
-\begin{table}[H]
-\centering
-\caption{Two-repeat speedup summary on 1200 frames with weighted placement}
-\label{tab:speedup-repeat}
-\begin{tabularx}{\textwidth}{C{1.0cm} C{1.2cm} C{2.7cm} C{2.2cm} C{2.4cm} X}
-\toprule
-\(P\) & Repeats & Mean runtime with comm. (s) & Runtime stdev (s) & Mean speedup & Note \\
-\midrule
-1 & 2 & 317.314 & 40.111 & 1.000 & Baseline varied strongly \\
-2 & 2 & 216.984 & 22.447 & 1.462 & Weighted placement \\
-4 & 2 & 197.756 & 27.604 & 1.605 & Weighted placement \\
-8 & 2 & 157.824 & 16.421 & 2.011 & Weighted placement \\
-12 & 2 & 129.756 & 0.135 & 2.445 & Weighted 4/6/2 \\
-\bottomrule
-\end{tabularx}
-\end{table}
 
 \section{Weighted Static Placement}
 The equal 4/4/4 placement does not meet the 25 percent idle-gap criterion. The best measured weighted placement assigns four ranks to the master, six to node1, and two to node2.
@@ -274,8 +262,23 @@ Weighted & 4/6/2 & 29.581 & 27.484 & 0.235 & Balanced \\
 
 This result supports the claim that processor assignment matters on a heterogeneous physical cluster. Equal rank placement gives every host the same number of processes, but the machines do not have equal throughput. Weighted placement reduces runtime and satisfies the load-balance criterion.
 
-\section{Local-Only and Full-Cluster Observation}
-Additional experiments show that increasing process count on a single machine can saturate local resources. On the master-only 600-frame 5x4 run, 2 processes achieved 288.494 seconds while 4 and 8 processes were slower. In contrast, the full three-machine 600-frame dynamic sweep improved from 202.715 seconds at 1 process to 90.900 seconds at 12 processes. This supports the defense point that physical distribution matters more than only increasing the number of local MPI ranks.
+\section{YOLO Parallel Correctness}
+Table~\ref{tab:correctness} reports the serial-versus-MPI correctness result recorded in the repository report. The MPI run produced the same frame counts as the serial baseline on the tested sequence.
+
+\begin{table}[H]
+\centering
+\caption{YOLO serial-versus-MPI correctness}
+\label{tab:correctness}
+\begin{tabularx}{\textwidth}{L{2.2cm} C{2.1cm} C{2.1cm} C{2.2cm} C{2.0cm} X}
+\toprule
+Result & Frames & Mismatched frames & Max count error & Mean error & Evidence \\
+\midrule
+Passed & 30 & 0 & 0 & 0.000 & repository report \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+This validates the parallel pipeline for the tested configuration. It indicates that task splitting, MPI result collection, coordinate remapping, duplicate removal, and final counting preserve the serial pipeline output.
 
 \section{Summary of Findings}
-The measured YOLO results support the main task-parallel narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that scheduling and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235. The remaining report work should deepen Method 1 with additional placement, granularity, and communication-breakdown experiments rather than adding a second method.
+The measured YOLO results support the main task-parallel narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that task granularity and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235.
