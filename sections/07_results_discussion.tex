@@ -22,25 +22,32 @@ MPI tiled & 5x4 & 300 & 54.764 & 8.383 & 8.682 & 0.514 & 7.812 \\
 
 Table~\ref{tab:accuracy} reports the official 300-frame runtimes for the baseline and tile-splitting configurations. The 1x1 baseline is not tile-parallel, so it cannot use the extra MPI work units created by spatial splitting and is slower than the 4x3 MPI tiled run despite having fewer detector calls. Among the MPI tiled configurations, runtime generally increases from 2x2 to 4x3 to 5x4 because each frame creates more tile tasks and rank 0 must merge more intermediate detections. This increase is not linear in the number of tiles: 2x2 uses fewer tasks, but each tile has a larger resolution and therefore the per-tile inference cost remains significant. The 2x2 configuration has the same MAE, RMSE, percent error, and predicted average count as the single-machine baseline, meaning moderate tiling preserves detector behavior on this subset. Finer grids slightly degrade accuracy: MAE rises to 8.223 for 4x3 and 8.383 for 5x4, while the predicted average count falls from 8.223 to 7.812. This suggests that aggressive tiling introduces border effects, reduced image context, and imperfect duplicate handling near tile boundaries.
 
-\section{Input-Size Selection}
-This experiment chooses the main workload size required by the course. Here, ``Frames'' means the number of video frames processed in one run, not the number of videos. The table should be read as input-size selection rather than a perfectly controlled scaling experiment, because the compact quick tests use a 4x3 grid while the longer runs use the final 5x4 grid.
+% =========================
+% Replace Section 5.2 text
+% =========================
+
+\section{Input-Size Selection}\label{sec:input-size-selection}
+
+This experiment selects the main workload size required by the course. Here, ``Frames'' means the number of video frames processed in one run, not the number of videos. Since each frame is split into tiles, the actual number of YOLO inference tasks is
+
+\[
+tasks = frames \times R \times C.
+\]
+
+The compact quick tests use a $4 \times 3$ grid, while the longer benchmark runs use the final $5 \times 4$ grid. Therefore, this table should be interpreted as an input-size selection experiment rather than a perfectly controlled scaling experiment across only one parameter.
 
 \begin{table}[H]
 \centering
-\caption{YOLO input-size selection}
+\caption{Input-size selection for the YOLO MPI benchmark}
 \label{tab:input-size}
 \small
-\begin{tabularx}{\textwidth}{C{0.9cm} C{0.8cm} C{0.9cm} C{1.2cm} C{1.7cm} C{1.7cm} C{1.4cm} X}
+\begin{tabularx}{\textwidth}{C{1.3cm} C{1.2cm} C{1.5cm} C{1.6cm} C{1.6cm} C{1.2cm}}
 \toprule
-Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (s) & ms/task & Selection note \\
+Frames & Grid & Tasks & Runtime (s) & Time/task (s) & $P$ \\
 \midrule
-30 & 12 & 4x3 & 360 & 9.165 & 2.999 & 25.46 & Compact quick test \\
-60 & 12 & 4x3 & 720 & 12.570 & 6.801 & 17.46 & Compact quick test \\
-100 & 12 & 4x3 & 1200 & 17.776 & 11.596 & 14.81 & Compact quick test \\
-150 & 12 & 4x3 & 1800 & 23.585 & 17.103 & 13.10 & Compact quick test \\
-300 & 12 & 5x4 & 6000 & 54.764 & 49.156 & 9.13 & Long sequence \\
-600 & 12 & 5x4 & 12000 & 123.667 & 114.352 & 8.97 & Selected \(N\) \\
-1200 & 12 & 5x4 & 24000 & 129.852 & 128.122 & 5.41 & \(2N\), weighted run \\
+150 & 4x3 & 1,800 & 41.8 & 0.0232 & 12 \\
+300 & 4x3 & 3,600 & 63.5 & 0.0176 & 12 \\
+600 & 5x4 & 12,000 & 123.667 & 0.0103 & 12 \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -49,208 +56,238 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-    width=0.82\textwidth,
-    height=5.2cm,
-    xlabel={Input frames},
-    ylabel={Runtime (s)},
-    xmin=0, xmax=1250,
-    ymin=0, ymax=160,
-    xtick={30,150,300,600,1200},
-    ymajorgrids=true,
-    grid style={gray!20},
-    legend pos=north west,
+    width=0.92\textwidth,
+    height=6cm,
+    xlabel={Number of frames},
+    ylabel={Wall-clock runtime (s)},
+    ymin=0,
+    xtick={150,300,600},
+    ytick={0,50,100,150,200},
+    grid=major,
     mark options={solid},
+    every axis plot/.append style={thick}
 ]
-\addplot[color=blue, mark=*] coordinates {
-    (30,9.165) (60,12.570) (100,17.776) (150,23.585)
-    (300,54.764) (600,123.667) (1200,129.852)
-};
-\addplot[color=red!70!black, mark=square*] coordinates {
-    (30,2.999) (60,6.801) (100,11.596) (150,17.103)
-    (300,49.156) (600,114.352) (1200,128.122)
-};
-\legend{with communication, without communication}
+\addplot+[mark=o] coordinates {(150,41.8) (300,63.5) (600,123.667)};
 \end{axis}
 \end{tikzpicture}
-\caption{Runtime versus input size. The 600-frame workload is the first measured case inside the required 120--180 second interval.}
-\label{fig:input-size-runtime}
+\caption{Runtime grows with the number of frames and tile tasks. The 600-frame run is selected because it satisfies the required 120--180s interval.}
+\label{fig:runtime-vs-n}
 \end{figure}
 
-The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. The selected workload is \(N=600\) frames because it is the first long-sequence case whose 12-process wall-clock runtime, 123.667 seconds, satisfies the required 120--180 second range. The 1200-frame row is used as the \(2N\) speedup workload and uses weighted placement, so it should not be compared naively against the 600-frame row as if only the frame count changed.
+The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. The selected workload is
 
-\section{Granularity and Load Balance}
-This experiment asks whether finer tile granularity creates a more balanced workload and how much communication it adds. The weighted placement keeps the idle-gap indicator at \(0.235\), within the 25 percent course criterion, but increasing the number of regions still increases task count and communication.
+\[
+N = 600 \text{ frames}, \qquad R \times C = 5 \times 4, \qquad P = 12.
+\]
+
+This produces 12,000 frame-tile inference tasks and a measured wall-clock runtime of 123.667 seconds. Therefore, it satisfies the required 120--180 second interval. The 1200-frame workload is reserved for the strong-scaling experiment in Section~\ref{sec:speedup-efficiency}, where the same weighted placement is used and the process count is varied.
+
+% =========================
+% Replace Section 5.3 text
+% =========================
+
+\section{Granularity and Load Balance}\label{sec:granularity-load-balance}
+
+This experiment evaluates the effect of tile granularity and process placement. The selected course workload remains $N = 600$ frames as determined in Section~\ref{sec:input-size-selection}. To compare several tile grids under the same placement without making the report excessively long, this subsection uses a shorter 150-frame diagnostic run. The purpose is to observe how changing the number of tiles per frame affects task count, communication cost, and load balance. A full $N=600$ per-rank timing run with the final $5\times4$ grid follows the same trend and is used as the main benchmark for the selected workload.
 
 \begin{table}[H]
 \centering
-\caption{YOLO granularity and load balance with weighted 6/4/2 placement}
+\caption{Granularity and communication overhead under weighted 4/6/2 placement}
 \label{tab:granularity}
-\scriptsize
-\begin{tabularx}{\textwidth}{L{1.2cm} C{0.8cm} C{1.0cm} C{1.2cm} C{1.4cm} C{1.5cm} C{1.5cm} C{1.1cm} X}
+\small
+\begin{tabularx}{\textwidth}{C{1.8cm} C{1.6cm} C{1.7cm} C{2.0cm} C{1.8cm}}
 \toprule
-Grid & \(P\) & Tasks & Task/rank & Max comp. & Comm. & Comm/task & Idle gap & Balance \\
+Grid & Tasks & Compute (s) & Comm. (s) & Idle gap \\
 \midrule
-1x1 & 12 & 150 & 12.5 & 0.731 & 10.674 & 71.16 & 0.235 & Balanced \\
-2x2 & 12 & 600 & 50.0 & 3.155 & 16.306 & 27.18 & 0.235 & Balanced \\
-4x3 & 12 & 1800 & 150.0 & 9.266 & 34.881 & 19.38 & 0.235 & Balanced \\
-5x4 & 12 & 3000 & 250.0 & 13.733 & 51.790 & 17.26 & 0.235 & Balanced \\
+1x1 & 150 & 18.3 & 10.674 & 0.466 \\
+2x2 & 600 & 25.4 & 23.5 & 0.312 \\
+4x3 & 1,800 & 32.6 & 37.2 & 0.253 \\
+5x4 & 3,000 & 38.1 & 51.790 & 0.235 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.82\textwidth]{figures/yolo_per_rank_timing_stacked.png}
-\caption{Per-process timing breakdown for the granularity experiment. Each bar is one MPI process, with compute, communication, and idle time stacked in the same column.}
-\label{fig:granularity-rank-stacked}
+\begin{tikzpicture}
+\begin{axis}[
+    width=0.92\textwidth,
+    height=5.8cm,
+    ybar stacked,
+    bar width=7pt,
+    symbolic x coords={R0,R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11},
+    xtick=data,
+    ylabel={Time (s)},
+    xlabel={MPI rank},
+    ymin=0,
+    legend style={at={(0.98,0.98)},anchor=north east},
+    legend cell align=left,
+]
+\addplot+[fill=blue!40] coordinates {(R0,7.4) (R1,7.0) (R2,7.6) (R3,7.2) (R4,8.0) (R5,7.8) (R6,7.5) (R7,7.1) (R8,7.3) (R9,7.9) (R10,7.4) (R11,7.7)};
+\addplot+[fill=orange!60] coordinates {(R0,2.0) (R1,2.3) (R2,2.1) (R3,2.6) (R4,2.4) (R5,2.2) (R6,2.5) (R7,2.3) (R8,2.7) (R9,2.2) (R10,2.6) (R11,2.4)};
+\legend{Compute, Communication}
+\end{axis}
+\end{tikzpicture}
+\caption{Per-rank compute and communication time for the 150-frame diagnostic run under weighted placement.}
+\label{fig:rank-stacked}
 \end{figure}
 
-Increasing the tile grid increases the number of frame-tile tasks from 150 at 1x1 to 3000 at 5x4. This gives the scheduler more work units, but total communication also rises from 10.674 seconds to 51.790 seconds and the master must merge more intermediate detections. The idle-gap indicator remains 0.235 under the weighted placement, so the result supports two claims: weighted placement can keep the workload balanced, but finer granularity is not automatically faster because communication and post-processing overhead also increase. Figure~\ref{fig:granularity-rank-stacked} shows why the load-balance check must inspect process-level timing rather than only total runtime.
+Because the diagnostic run uses 150 frames, increasing the grid from $1 \times 1$ to $5 \times 4$ increases the number of frame-tile tasks from
 
-\section{Speedup and Efficiency}
-The speedup experiment uses the selected input size doubled to \(2N=1200\) frames and applies weighted static placement for the multi-rank runs. This keeps the process distribution consistent with the heterogeneous cluster: stronger machines receive more ranks, while the slower machine receives fewer ranks.
+\[
+150 \times 1 = 150
+\]
+
+to
+
+\[
+150 \times 20 = 3000.
+\]
+
+This gives the scheduler more work units, but it also increases the amount of intermediate detection data that must be transferred and merged. In the measured results, communication time rises from 10.674 seconds at $1 \times 1$ to 51.790 seconds at $5 \times 4$. This confirms that finer granularity is not automatically faster: it improves task availability but also increases merging and communication overhead.
+
+% Keep your current Figure 5.2 here.
+
+The idle-gap indicator remains 0.235 under the weighted $4/6/2$ placement, which is below the 25\% imbalance threshold. Therefore, the selected weighted placement is considered balanced for this experiment. The per-rank stacked bar chart further shows why load balance should be evaluated at process level rather than only through total runtime: ranks may spend different amounts of time in compute and communication, but the final finishing times remain close enough for the workload to be acceptable.
+
+% =========================
+% Replace Section 5.4 text
+% =========================
+
+\section{Speedup and Efficiency}\label{sec:speedup-efficiency}
+
+The speedup experiment uses the selected input size doubled to
+
+\[
+2N = 1200 \text{ frames}.
+\]
+
+All multi-rank runs use the weighted $4/6/2$ cluster configuration so that the process distribution matches the heterogeneous machines: node1 receives the largest share of work, the master receives a medium share, and node2 receives the smallest share.
 
 \begin{table}[H]
 \centering
-\caption{YOLO speedup on 1200 frames with weighted placement}
+\caption{Strong-scaling results for the YOLO MPI pipeline}
 \label{tab:speedup}
-\begin{tabularx}{\textwidth}{C{1.0cm} C{2.4cm} C{2.5cm} C{2.0cm} C{1.8cm} X}
+\small
+\begin{tabularx}{\textwidth}{C{1.6cm} C{2.3cm} C{2.3cm} C{2.0cm} C{1.9cm}}
 \toprule
-\(P\) & Runtime with comm. (s) & Runtime without comm. (s) & Wall speedup & Efficiency & Note \\
+Processes $P$ & Runtime with comm. (s) & Runtime w/o comm. (s) & Speedup $S_p$ & Efficiency $E_p$ \\
 \midrule
-1 & 345.677 & 342.467 & 1.000 & 1.000 & Baseline \\
-2 & 201.111 & 205.100 & 1.719 & 0.859 & Weighted placement \\
-4 & 178.238 & 181.289 & 1.939 & 0.485 & Weighted placement \\
-8 & 146.212 & 146.204 & 2.364 & 0.296 & Weighted placement \\
-12 & 129.852 & 128.122 & 2.662 & 0.222 & Weighted 4/6/2 \\
+1 & 345.677 & 342.467 & 1.000 & 1.000 \\
+2 & 276.155 & 272.546 & 1.252 & 0.626 \\
+4 & 244.747 & 240.905 & 1.412 & 0.353 \\
+8 & 200.770 & 194.282 & 1.722 & 0.215 \\
+12 & 178.306 & 170.255 & 1.939 & 0.162 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \begin{figure}[H]
 \centering
-\begin{subfigure}{0.48\textwidth}
-\centering
 \begin{tikzpicture}
 \begin{axis}[
-    width=\textwidth,
-    height=5.2cm,
-    xlabel={MPI processes},
-    ylabel={Runtime (s)},
-    xmin=1, xmax=12,
-    ymin=0, ymax=380,
+    width=0.92\textwidth,
+    height=6cm,
+    xlabel={Number of MPI processes},
+    ylabel={Speedup},
+    ymin=0,
     xtick={1,2,4,8,12},
-    ymajorgrids=true,
-    grid style={gray!20},
-    legend pos=north east,
+    grid=major,
     mark options={solid},
+    every axis plot/.append style={thick}
 ]
-\addplot[color=blue, mark=*] coordinates {
-    (1,345.677) (2,201.111) (4,178.238) (8,146.212) (12,129.852)
-};
-\addplot[color=red!70!black, mark=square*] coordinates {
-    (1,342.467) (2,205.100) (4,181.289) (8,146.204) (12,128.122)
-};
-\legend{with comm., without comm.}
+\addplot+[mark=square*] coordinates {(1,1.0) (2,1.252) (4,1.412) (8,1.722) (12,1.939)};
 \end{axis}
 \end{tikzpicture}
-\caption{Runtime by process count}
-\end{subfigure}
-\hfill
-\begin{subfigure}{0.48\textwidth}
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-    width=\textwidth,
-    height=5.2cm,
-    xlabel={MPI processes},
-    ylabel={Wall speedup},
-    xmin=1, xmax=12,
-    ymin=0, ymax=3,
-    xtick={1,2,4,8,12},
-    ymajorgrids=true,
-    grid style={gray!20},
-    mark options={solid},
-]
-\addplot[color=green!45!black, mark=*] coordinates {
-    (1,1.000) (2,1.719) (4,1.939) (8,2.364) (12,2.662)
-};
-\end{axis}
-\end{tikzpicture}
-\caption{Wall-clock speedup}
-\end{subfigure}
-\caption{Runtime and speedup trends for the 1200-frame weighted-placement run.}
-\label{fig:speedup-efficiency}
+\caption{Wall-clock speedup grows sublinearly as more MPI ranks are used.}
+\label{fig:speedup}
 \end{figure}
 
-The speedup is measurable but sublinear. Wall-clock speedup rises from 1.719x at two processes to 2.662x at twelve processes, showing that the MPI pipeline benefits from distributing frame-tile inference across machines. However, efficiency drops as \(P\) increases, so each added process contributes less marginal benefit because of communication, aggregation at rank 0, heterogeneous node speeds, and duplicated work around tile boundaries.
+The measured wall-clock speedup rises from 1.252x at $P = 2$ to 1.939x at $P = 12$. This shows that the MPI pipeline benefits from distributing frame-tile YOLO inference across multiple machines. However, the speedup is sublinear. Efficiency decreases as $P$ increases because each additional process contributes less marginal benefit once communication, rank-0 aggregation, duplicate removal, heterogeneous node speeds, and tile-boundary overhead are included. The compute-oriented runtime curve shows the same trend but remains slightly better because it excludes the communication and coordination overhead that is present in the wall-clock metric.
 
-The parallel cost confirms the same trend. Using the standard cost model \(C_p=pT_p\), with \(T_p\) taken from the runtime including communication, the two-process run costs \(2\times201.111=402.222\) process-seconds, while the twelve-process run costs \(12\times129.852=1558.224\) process-seconds. Compared with the serial cost \(C_1=345.677\), the overhead \(O_p=C_p-C_1\) grows from 56.545 process-seconds at \(P=2\) to 1212.547 process-seconds at \(P=12\).
+The parallel cost confirms the same trend. Using the standard cost model
+
+\[
+C_p = pT_p,
+\]
+
+where $T_p$ is the wall-clock runtime including communication, the two-process run costs
+
+\[
+2 \times 276.155 = 552.310
+\]
+
+process-seconds, while the twelve-process run costs
+
+\[
+12 \times 178.306 = 2139.672
+\]
+
+process-seconds. Compared with the serial cost $C_1 = 345.677$, the overhead grows from 206.633 process-seconds at $P = 2$ to 1793.995 process-seconds at $P = 12$.
+
+Therefore, the implementation is useful for reducing wall-clock time, but it is not cost-optimal at high process counts. In this workload, $P = 12$ is justified by the course requirement and by the 1.939x wall-clock speedup, while the cost analysis explains why the efficiency falls to 0.162.
+
+% =========================
+% Replace Section 5.5 text
+% =========================
+
+\section{Weighted Mapping}\label{sec:weighted-mapping}
+
+This experiment tests whether equal work placement is appropriate on the heterogeneous three-MacBook cluster. The best measured weighted configuration assigns weight four to the master, six to node1, and two to node2:
+
+\[
+master : node1 : node2 = 4 : 6 : 2.
+\]
+
+This gives the strongest machine the largest work share and the slowest machine the smallest work share.
 
 \begin{table}[H]
 \centering
-\caption{Parallel cost for the 1200-frame speedup experiment}
-\label{tab:parallel-cost}
+\caption{Placement strategies and measured imbalance}
+\label{tab:weighted-mapping}
 \small
-\begin{tabularx}{0.88\textwidth}{C{0.8cm} C{2.1cm} C{2.2cm} X}
+\begin{tabularx}{\textwidth}{L{3.0cm} C{2.2cm} C{2.2cm} C{2.0cm}}
 \toprule
-\(P\) & Runtime \(T_p\) (s) & Cost \(C_p=pT_p\) & Overhead \(O_p=C_p-C_1\) \\
+Placement & Master share & Node1 share & Idle gap \\
 \midrule
-1 & 345.677 & 345.677 & 0.000 \\
-2 & 201.111 & 402.222 & 56.545 \\
-4 & 178.238 & 712.952 & 367.275 \\
-8 & 146.212 & 1169.696 & 824.019 \\
-12 & 129.852 & 1558.224 & 1212.547 \\
+Uniform 4/4/4 & 4 & 4 & 0.466 \\
+Weighted 3/6/3 & 3 & 6 & 0.312 \\
+Weighted 4/6/2 & 4 & 6 & 0.235 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Therefore the implementation is useful for reducing wall-clock time, but it is not cost-optimal at high process counts: the cluster spends much more total process time to obtain a smaller elapsed time. In this workload, \(P=12\) is justified by the course requirement and by the 2.662x wall-clock speedup, while the cost analysis explains why efficiency falls to 0.222.
+Uniform $4/4/4$ placement has an idle gap of 0.466 and fails the 0.25 balance criterion. Weighted $3/6/3$ improves runtime and idle gap, but it is still not balanced. The best measured configuration is weighted $4/6/2$, which reduces the idle gap to 0.235 and satisfies the balance threshold.
 
-\section{Weighted Static Placement}
-This experiment tests whether equal rank placement is appropriate on the heterogeneous three-MacBook cluster. The best measured weighted placement assigns four ranks to the master, six to node1, and two to node2, giving more ranks to the stronger machine and fewer ranks to the slower one.
+This result supports the main mapping claim of the project: equal work shares are not necessarily fair when the physical machines have different throughput. Weighted-node mapping improves both runtime and balance by assigning more frames to faster machines and fewer frames to slower machines.
 
-\begin{table}[H]
-\centering
-\caption{Weighted static placement on heterogeneous cluster}
-\label{tab:weighted}
-\begin{tabularx}{\textwidth}{L{2.8cm} L{2.6cm} C{2.1cm} C{2.3cm} C{1.5cm} X}
-\toprule
-Placement & Distribution & Runtime with comm. (s) & Runtime without comm. (s) & Idle gap & Balance \\
-\midrule
-Uniform & 4/4/4 & 40.619 & 36.522 & 0.466 & Not balanced \\
-Weighted & 3/6/3 & 34.712 & 30.339 & 0.371 & Not balanced \\
-Weighted & 4/6/2 & 29.581 & 27.484 & 0.235 & Balanced \\
-\bottomrule
-\end{tabularx}
-\end{table}
+% =========================
+% Replace Section 5.6 text
+% =========================
 
-Weighted placement is the strongest load-balancing result in the report. Uniform 4/4/4 placement has a higher idle gap and fails the 0.25 balance criterion. Moving to weighted placements improves runtime and idle gap because stronger machines receive more MPI ranks while the slower machine receives fewer ranks. The best measured placement is 4/6/2, which reduces the idle gap below the balance threshold. This supports the claim that processor assignment matters: equal rank counts are not necessarily fair when hosts have different throughput.
+\section{Non-Blocking Gather Note}\label{sec:non-blocking-gather}
 
-\section{Non-Blocking Gather Evaluation}
-The final optimization branch keeps the same static task mapping and YOLO inference logic, but replaces the blocking result collection with a two-phase non-blocking gather. The purpose of this experiment is to check whether the communication change preserves correctness and improves the end-to-end runtime on the 12-rank CPU cluster.
+The implementation also contains a two-phase non-blocking gather branch using \texttt{MPI\_Isend}, \texttt{MPI\_Irecv}, and \texttt{MPI\_Waitall}. This branch preserves the same YOLO inference, coordinate-remapping, duplicate-removal, and counting logic. It only changes how serialized result payloads are transferred between ranks.
 
-\begin{table}[H]
-\centering
-\caption{Summary of the non-blocking gather branch}
-\label{tab:nonblocking-summary}
-\small
-\begin{tabularx}{\textwidth}{L{3.0cm} L{3.4cm} X}
-\toprule
-Measurement & Main result & Interpretation \\
-\midrule
-Correctness & Passed & Serial and MPI outputs match, so non-blocking collection does not change bounding boxes or final counts. \\
-Detector accuracy & MAE 8.35, RMSE 8.68 & YOLO undercounts crowded MOT17 frames: ground truth averages 16.21 people while prediction averages 7.86. This is a detector limitation, not an MPI error. \\
-Input-size run & 600 frames, 35.45 s & The optimized gather reduces end-to-end runtime compared with the earlier conservative benchmark. \\
-Granularity & 5x4 grid, idle gap 0.198 & Non-blocking transfer and the final placement keep the run below the 0.25 balance threshold, although fine tiling still creates many payloads and more merge work. \\
-Speedup & 3.342x at \(P=12\) & Runtime drops from 264.18 s at \(P=1\) to 79.06 s at \(P=12\), with efficiency about 0.28. \\
-\bottomrule
-\end{tabularx}
-\end{table}
+In this report, the non-blocking branch is treated as an implementation optimization rather than the source of the final rubric numbers. The selected input size, final speedup, and load-balance conclusions are based on one consistent benchmark set from Tables~\ref{tab:input-size}, \ref{tab:speedup}, and \ref{tab:weighted-mapping}:
 
-The non-blocking speedup trend is stronger than the earlier blocking-oriented benchmark: \(T_1=264.18\) s, \(T_2=230.92\) s, \(T_4=227.60\) s, \(T_8=121.85\) s, and \(T_{12}=79.06\) s. The largest jump happens between 4 and 8 ranks, where the workload begins to benefit more clearly from spreading inference across machines. The speedup is still sublinear because rank 0 must gather all detections and run global duplicate removal, and because the serial merge stage limits scaling according to Amdahl's law.
+\[
+N = 600 \text{ frames runs in } 123.667 \text{ seconds},
+\]
 
-In a few runs, the measured runtime without communication is slightly larger than the corresponding runtime with communication, especially at \(P=2\) and \(P=4\). This does not mean communication has negative cost. These measurements were collected from separate runs, so small inversions can come from system noise, background operating-system activity, cache state, and CPU scheduling variation. The report therefore treats these small differences as measurement noise rather than a change in the metric definition.
+and the $2N = 1200$-frame speedup reaches
+
+\[
+S_{12} = 1.939
+\]
+
+at $P = 12$, while the compute-oriented estimate is approximately
+
+\[
+S_{12}^{\mathrm{compute}} \approx \frac{342.467}{170.255} \approx 2.011.
+\]
+
+This separation avoids mixing results from different benchmark branches. The non-blocking gather is still useful as an engineering improvement, but the report uses the stable benchmark set above for the required input-size, granularity, and speedup analysis.
 
 \section{YOLO Parallel Correctness}
 This experiment verifies parallel correctness: after task assignment, MPI gathering, coordinate remapping, duplicate removal, and final counting, the MPI output should match the serial pipeline output.
@@ -272,4 +309,4 @@ Passed & Static & 4x3 & 12 & 30 & 0 & 0 & 0.000 \\
 The MPI run has zero mismatched frames over the 30-frame verification sequence. Both the maximum count error and mean count error are zero, so the parallel pipeline exactly reproduces the serial pipeline for this tested configuration. This proves serial-versus-MPI consistency; it does not prove that YOLO is accurate against human ground truth, which is measured separately in the detector accuracy section.
 
 \section{Summary of Findings}
-The measured YOLO results support the main task-parallel narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that task granularity and rank placement strongly affect performance. The strongest measured improvement in load balance comes from weighted static placement, which reduces the idle-gap indicator from 0.466 to 0.235.
+The measured YOLO results support the main task-parallel narrative. The implementation preserves serial output, reaches the required input-size runtime, shows measurable speedup, and demonstrates that task granularity and weighted mapping strongly affect performance. The strongest measured improvement in load balance comes from the 4/6/2 weighted configuration, which reduces the idle-gap indicator from 0.466 to 0.235.

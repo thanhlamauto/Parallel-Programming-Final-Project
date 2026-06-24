@@ -58,7 +58,7 @@ This coordinate remapping is necessary but not sufficient. A person standing nea
 This post-processing step is the main reason the problem is not purely embarrassingly parallel. Detector calls can be distributed across ranks, but final counting requires global information about all detections belonging to the same frame.
 
 \section{Parallel-Programming Focus}
-The central parallel-programming question is how to execute the frame-tile inference tasks across multiple MPI ranks while preserving the serial pipeline output and measuring the cost of distribution. The implementation uses task parallelism, static task mapping, centralized result gathering, and weighted process placement on a heterogeneous three-machine cluster.
+The central parallel-programming question is how to execute the frame-tile inference tasks across multiple MPI ranks while preserving the serial pipeline output and measuring the cost of distribution. The implementation uses task parallelism, rank mapping as the baseline, node-weighted mapping for the heterogeneous cluster, and duplicate-aware result gathering.
 
 The YOLO pipeline exercises the following parallel-programming concepts:
 \begin{table}[H]
@@ -71,9 +71,9 @@ Concept & YOLO MPI implementation \\
 \midrule
 Parallelism level & Task parallelism across repeated YOLO inference calls \\
 Decomposition & Hybrid temporal-spatial decomposition into frame-tile tasks \\
-Mapping & 1D flattened task list with static block-cyclic ownership \\
-Communication & Rank-local inference followed by centralized detection and metric gathering \\
-Load balancing & Tile granularity and weighted process placement \\
+Mapping & Baseline rank mapping and node-weighted frame mapping \\
+Communication & Direct gather to rank 0, or local merge on each node before rank 0 \\
+Load balancing & Tile granularity, node weights, and local rank distribution \\
 Correctness target & MPI frame counts match serial frame counts after the same post-processing pipeline \\
 \bottomrule
 \end{tabularx}

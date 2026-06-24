@@ -9,7 +9,7 @@ The report evaluates the implementation as a distributed-memory parallel program
 The main contributions and insights of this technical report are:
 \begin{enumerate}
     \item It formulates YOLO video people counting as a task-parallel MPI workload over frames and image tiles.
-    \item It presents an OpenMPI implementation that combines static block-cyclic task mapping, rank-local YOLO workers, centralized detection merging, duplicate removal, and metric collection.
+    \item It presents an OpenMPI implementation that combines rank-based mapping, node-weighted mapping, rank-local YOLO workers, duplicate removal, and metric collection.
     \item It verifies that the MPI pipeline preserves serial output in the correctness experiment, while also showing that detector accuracy against ground truth is a separate limitation.
     \item It analyzes speedup and remaining bottlenecks, especially communication overhead, tile granularity, master-side post-processing, and unequal machine capacity.
 \end{enumerate}

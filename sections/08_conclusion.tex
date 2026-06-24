@@ -1,7 +1,25 @@
 \chapter{Conclusion}
 
-This project implemented and evaluated a task-parallel people-counting pipeline using YOLO, C++17, and OpenMPI on a three-machine physical cluster. The input video is decomposed both temporally and spatially: frames create independent work over time, while image tiles create finer-grained work inside each frame. These tasks are assigned to MPI ranks using static block-cyclic mapping, processed locally by YOLO workers, and merged at the master process through coordinate remapping, tile-owner filtering, and global duplicate removal.
+This project implemented and evaluated a task-parallel people-counting pipeline using YOLO, C++17, and OpenMPI on a three-machine physical cluster. The input video is decomposed both temporally and spatially: frames create independent work over time, while image tiles create finer-grained work inside each frame. These frame-tile tasks are assigned through rank-based mapping and weighted-node mapping, processed locally by YOLO workers, and merged through coordinate remapping, tile-owner filtering, and global duplicate removal.
 
-The experiments show that the parallel version preserves the behavior of the serial tiled pipeline while exposing the main performance trade-offs of distributed video inference. Task granularity affects both parallelism and communication cost. Static scheduling keeps the implementation simple and low-overhead, but it must be combined with careful process placement on a heterogeneous cluster. Weighted placement improves the final configuration by reducing idle time without changing the algorithmic output. The final non-blocking gather branch further improves result collection by allowing payload messages from different ranks to be in flight at the same time, while keeping YOLO inference and the merge logic unchanged.
+The project demonstrates the main parallel-programming concepts required by the course. The level of parallelism is task parallelism. The decomposition technique is hybrid temporal-spatial decomposition. The mapping strategy includes a simple rank-based mapping and a weighted-node mapping designed for a heterogeneous cluster. The communication pattern is either a centralized gather to rank 0 or a hierarchical node-local merge followed by a compact global gather. Load balance is measured with an idle-gap indicator, and the best measured placement is the weighted $4/6/2$ configuration.
 
-The project also shows the practical limitations of this approach. Centralized merging at the master can become a bottleneck, tiled inference may reduce visual context near region boundaries, and detector accuracy on crowded scenes is limited by the pretrained model rather than by MPI itself. Even with these limitations, the system demonstrates the key parallel programming concepts required by the course: decomposition, mapping, communication, load balancing, correctness verification, granularity analysis, and speedup measurement. The live-camera mode further illustrates that the same MPI pipeline can be used as an interactive distributed computer-vision application.
+The experiments show that the parallel implementation preserves the behavior of the serial tiled pipeline. In the correctness experiment, the MPI run has zero mismatched frames, zero maximum count error, and zero mean count error compared with the serial pipeline. This verifies parallel correctness, although detector accuracy against human ground truth remains a separate limitation of the pretrained YOLO model.
+
+For input-size selection, the selected course workload is
+
+\[
+N = 600 \text{ frames}
+\]
+
+with a $5 \times 4$ tile grid and 12 MPI processes. This produces 12,000 frame-tile inference tasks and a wall-clock runtime of 123.667 seconds, satisfying the required 120--180 second interval. For the strong-scaling experiment, the workload is doubled to
+
+\[
+2N = 1200 \text{ frames}.
+\]
+
+The final measured wall-clock speedup is 1.939x at $P = 12$, while the compute-oriented curve stays slightly better at about 2.011x. The result is useful but sublinear, mainly because of communication overhead, rank-0 aggregation, duplicate removal, tile-boundary effects, and heterogeneous node speeds.
+
+The granularity and mapping experiments show that finer tiling creates more parallel work units but also increases communication and post-processing cost. Therefore, more tasks do not automatically produce better performance. The weighted $4/6/2$ placement improves load balance by reducing the idle-gap indicator from 0.466 under uniform $4/4/4$ placement to 0.235, which is below the 25\% imbalance threshold.
+
+The project also exposes practical limitations. Centralized merging at the master can become a bottleneck, tiled inference can reduce visual context near region boundaries, and the pretrained detector may undercount crowded scenes. Even with these limitations, the system provides a clear demonstration of distributed computer-vision inference with MPI, including decomposition, mapping, communication, load balancing, correctness verification, granularity analysis, and speedup measurement.
