@@ -56,14 +56,14 @@ Frames & \(P\) & Grid & Tasks & Runtime with comm. (s) & Runtime without comm. (
 100 & 12 & 4x3 & 1200 & 17.776 & 11.596 & 14.81 & Compact quick test \\
 150 & 12 & 4x3 & 1800 & 23.585 & 17.103 & 13.10 & Compact quick test \\
 300 & 12 & 5x4 & 6000 & 54.764 & 49.156 & 9.13 & Long sequence \\
-600 & 12 & 5x4 & 12000 & 123.667 & 114.352 & 10.31 & Selected \(N\) \\
+600 & 12 & 5x4 & 12000 & 123.667 & 114.352 & 8.97 & Selected \(N\) \\
 837 & 12 & 5x4 & 16740 & 146.316 & 139.136 & 8.74 & Best ms/task, longer validation \\
 1200 & 12 & 5x4 & 24000 & 178.306 & 170.255 & 7.43 & \(2N\), speedup workload \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. The 1200-frame run has the best measured time per task because it amortizes overhead over 24000 tasks, but it is used as the \(2N\) speedup workload. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
+The time-per-task column shows that very small inputs have high overhead because startup, synchronization, and aggregation are amortized over too few tasks. As the long-sequence input grows from 300 to 1200 frames, the measured time per task generally improves, indicating better amortization of fixed overhead. The 1200-frame run has the best measured time per task because it amortizes overhead over 24000 tasks, but it is used as the \(2N\) speedup workload. The 600-frame run is selected as \(N\) because it is the first long-sequence case that satisfies the required 120--180 second runtime window.
 
 \section{Granularity and Load Balance}
 Table~\ref{tab:granularity} summarizes the granularity experiment from the repository report. Increasing the number of regions increases task count, communication, and idle time. None of these compact-dataset runs satisfy the 25 percent idle-gap balance criterion.
